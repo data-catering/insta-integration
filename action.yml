@@ -28,8 +28,9 @@ runs:
     - name: Run integration tests
       uses: actions/github-script@v7
       with:
-        configuration-file: ${{ inputs.configuration-file }}
-        insta-infra-folder: ${{ inputs.insta-infra-folder }}
         script: |
           const script = require("${{github.action_path}}/dist/index.js")
           script({core})
+      env:
+        CONFIGURATION_FILE: ${{ inputs.configuration-file }}
+        INSTA_INFRA_FOLDER: ${{ inputs.insta-infra-folder }}
