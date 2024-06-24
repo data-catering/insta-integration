@@ -10,9 +10,6 @@ const {
   createDataCatererDockerRunCommand
 } = require('./config')
 
-const baseFolder = '/tmp/data-caterer'
-const configurationFolder = `${baseFolder}/conf`
-const sharedFolder = `${baseFolder}/shared`
 const dataCatererVersion = '0.11.1'
 
 /**
@@ -240,7 +237,12 @@ function extractDataValidations(testConfig, appIndex, currValidations) {
   }
 }
 
-function runDataCaterer(testConfig, appIndex) {
+function runDataCaterer(
+  testConfig,
+  appIndex,
+  configurationFolder,
+  sharedFolder
+) {
   // Use template plan and task YAML files
   // Also, template application.conf
   const currentPlan = basePlan()
@@ -276,7 +278,7 @@ function runDataCaterer(testConfig, appIndex) {
   execSync(dockerRunCommand)
 }
 
-function cleanAppDoneFiles(parsedConfig) {
+function cleanAppDoneFiles(parsedConfig, sharedFolder) {
   // Clean up 'app-*-done' files in shared directory
   for (const [i] of parsedConfig.run.entries()) {
     try {
@@ -287,8 +289,13 @@ function cleanAppDoneFiles(parsedConfig) {
   }
 }
 
-function runTests(parsedConfig, configFileDirectory) {
+function runTests(parsedConfig, configFileDirectory, baseFolder) {
   let testResult = ''
+  const configurationFolder = `${baseFolder}/conf`
+  const sharedFolder = `${baseFolder}/shared`
+  fs.mkdirSync(configurationFolder, { recursive: true })
+  fs.mkdirSync(sharedFolder, { recursive: true })
+
   if (parsedConfig.run) {
     for (const [i, runConf] of parsedConfig.run.entries()) {
       // Need to know whether to run application first or data generation
@@ -312,7 +319,12 @@ function runTests(parsedConfig, configFileDirectory) {
         !runConf.generateFirst
       ) {
         core.info('Running data caterer')
-        testResult = runDataCaterer(runConf.test, i)
+        testResult = runDataCaterer(
+          runConf.test,
+          i,
+          configurationFolder,
+          sharedFolder
+        )
         core.info('Running application/job')
         execSync(runConf.command, { cwd: configFileDirectory })
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
@@ -321,10 +333,15 @@ function runTests(parsedConfig, configFileDirectory) {
         execSync(runConf.command, { cwd: configFileDirectory })
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
         core.info('Running data caterer')
-        testResult = runDataCaterer(runConf.test, i)
+        testResult = runDataCaterer(
+          runConf.test,
+          i,
+          configurationFolder,
+          sharedFolder
+        )
       }
     }
-    cleanAppDoneFiles(parsedConfig)
+    cleanAppDoneFiles(parsedConfig, sharedFolder)
   }
 }
 
@@ -338,9 +355,10 @@ function runTests(parsedConfig, configFileDirectory) {
  * - Return back summarised results
  * @param configFile Base configuration file defining requirements for integration tests
  * @param instaInfraFolder  Folder where insta-infra is checked out
+ * @param baseFolder Folder where execution files get saved
  * @returns {string}  Results of data-caterer
  */
-function runIntegrationTests(configFile, instaInfraFolder) {
+function runIntegrationTests(configFile, instaInfraFolder, baseFolder) {
   if (instaInfraFolder.includes(' ')) {
     throw new Error(`Invalid insta-infra folder pathway=${instaInfraFolder}`)
   }
@@ -364,7 +382,7 @@ function runIntegrationTests(configFile, instaInfraFolder) {
     })
   }
 
-  const testResults = runTests(parsedConfig, configFileDirectory)
+  const testResults = runTests(parsedConfig, configFileDirectory, baseFolder)
   core.info('Finished tests!')
   return testResults
 }

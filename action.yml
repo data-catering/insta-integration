@@ -4,12 +4,15 @@ author: 'Data Catering'
 
 # Define your inputs here.
 inputs:
-  configuration-file:
+  configuration_file:
     description: 'File path to Data Caterer configuration file'
     default: 'data-caterer.yaml'
-  insta-infra-folder:
+  insta_infra_folder:
     description: 'Folder to insta-infra'
     default: 'data-caterer-integration-test/insta-infra'
+  base_folder:
+    description: 'Folder to use for execution files'
+    default: '/tmp/data-caterer'
 
 # Define your outputs here.
 outputs:
@@ -32,5 +35,6 @@ runs:
           const { script } = require("${{github.action_path}}/dist/index.js")
           script()
       env:
-        CONFIGURATION_FILE: ${{ inputs.configuration-file }}
-        INSTA_INFRA_FOLDER: ${{ inputs.insta-infra-folder }}
+        CONFIGURATION_FILE: ${{ inputs.configuration_file }}
+        INSTA_INFRA_FOLDER: ${{ inputs.insta_infra_folder }}
+        BASE_FOLDER: ${{ github.action_path }}

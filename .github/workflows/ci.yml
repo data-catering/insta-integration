@@ -57,7 +57,8 @@ jobs:
         id: test-action
         uses: ./
         with:
-          configuration-file: example/file.yaml
+          configuration_file: example/file.yaml
+          base_folder: ./data-caterer
 
       - name: Print Output
         id: output
