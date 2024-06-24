@@ -30,7 +30,7 @@ runs:
       with:
         script: |
           const script = require("${{github.action_path}}/dist/index.js")
-          script({core})
+          script()
       env:
         CONFIGURATION_FILE: ${{ inputs.configuration-file }}
         INSTA_INFRA_FOLDER: ${{ inputs.insta-infra-folder }}
