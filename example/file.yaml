@@ -1,0 +1,19 @@
+services: []
+run:
+  - command: ./my-app/run-app.sh
+    test:
+      generation:
+        parquet:
+          - options:
+              path: /tmp/parquet/accounts
+            schema:
+              fields:
+                - name: account_id
+      validation:
+        parquet:
+          - options:
+              path: /tmp/parquet/accounts
+            validations:
+              - expr: ISNOTNULL(account_id)
+              - aggType: count
+                aggExpr: count == 1000

@@ -25,8 +25,10 @@ describe('action', () => {
     // Set the action's inputs as return values from core.getInput()
     getInputMock.mockImplementation(name => {
       switch (name) {
-        case 'milliseconds':
-          return '500'
+        case 'configuration-file':
+          return 'example/sample-config.yaml'
+        case 'insta-infra-folder':
+          return '/Users/peter/code/insta-infra'
         default:
           return ''
       }
@@ -35,7 +37,7 @@ describe('action', () => {
     await main.run()
     expect(runMock).toHaveReturned()
 
-    // Verify that all of the core library functions were called correctly
+    // Verify that all the core library functions were called correctly
     expect(debugMock).toHaveBeenNthCalledWith(1, 'Waiting 500 milliseconds ...')
     expect(debugMock).toHaveBeenNthCalledWith(
       2,
@@ -87,7 +89,7 @@ describe('action', () => {
     await main.run()
     expect(runMock).toHaveReturned()
 
-    // Verify that all of the core library functions were called correctly
+    // Verify that all the core library functions were called correctly
     expect(setFailedMock).toHaveBeenNthCalledWith(
       1,
       'Input required and not supplied: milliseconds'
