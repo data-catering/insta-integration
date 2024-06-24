@@ -57,7 +57,7 @@ jobs:
         id: test-action
         uses: ./
         with:
-          milliseconds: 1000
+          configuration-file: example/file.yaml
 
       - name: Print Output
         id: output
