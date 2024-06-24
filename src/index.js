@@ -3,4 +3,6 @@
  */
 const { run } = require('./main')
 
-run()
+function script() {
+  run()
+}

@@ -7744,7 +7744,9 @@ var __webpack_exports__ = {};
  */
 const { run } = __nccwpck_require__(1713)
 
-run()
+function script() {
+  run()
+}
 
 })();
 

@@ -29,7 +29,7 @@ runs:
       uses: actions/github-script@v6
       with:
         script: |
-          const script = require("${{github.action_path}}/dist/index.js")
+          const { script } = require("${{github.action_path}}/dist/index.js")
           script()
       env:
         CONFIGURATION_FILE: ${{ inputs.configuration-file }}
