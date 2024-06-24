@@ -203,3 +203,72 @@ steps:
     id: output
     run: echo "${{ steps.run-action.outputs.time }}"
 ```
+
+# Automatic Integration Tests via GitHub Actions
+
+1. Create pull request
+2. Triggers GitHub action
+3. Sets up services via insta-infra
+4. Data generated via data-caterer
+5. Results published to pull request
+
+# Setup
+
+- Create new GitHub application
+- Follows similar flow to renovatebot
+  - Creates initial pull request with template YAML file and GitHub action YAML
+    - Can try to detect services used (i.e. check `src/test/resources`)
+      - Can try detect via dependencies (i.e. build.gradle, pom.xml,
+        requirements.txt, etc.)
+    - Users can manually add the services their app interacts with (i.e.
+      Postgres, MySQL)
+  - The target repo could be one or more apps/jobs
+    - Need to know how to run their app/job
+    - Use docker image by default, otherwise build and start script could be
+      provided by user
+    - Use default credentials of each service
+  - Ability to define custom data generation/validation with YAML
+
+# Example Flow
+
+GitHub Action YAML
+
+```yaml
+name: Integration Test
+on:
+  push:
+    branches:
+      - *
+jobs:
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Run integration tests
+        uses: data-catering/data-caterer-action@v1
+```
+
+YAML config file:
+
+```yaml
+services: #what external services your app/job connects to
+  - name: kafka:1.1.0 #optionally define a version
+    data: https://github.com/data-catering/insta-infra/blob/main/data/kafka/my_data.sh
+  - name: postgres
+    data: src/main/resources/postgres/ddl
+run: #how to run your app/job, can run multiple, run in order
+  - command: ./run-app.sh
+    #    command: java -jar build/target/my-app.jar
+    #    command: docker run -p 8080:8080 my-image:${APP_VERSION:-1.3.1}  #allow for env variable substitution anywhere in the YAML
+    env:
+      - APP_VERSION=1.3.1
+    test: #using data-caterer, generate and validate data
+      generation:
+        - name: kafka #name matches with service from above
+      validation:
+        - name: postgres
+options: #additional options
+  keepAlive: true #could allow services to be kept alive after running
+  deleteData: false #retain data for further investigation/debugging/testing
+```

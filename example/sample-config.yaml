@@ -1,0 +1,42 @@
+services: #what external services your app/job connects to
+  - name: kafka:v1.1.0 #optionally define a version
+    env:
+      KAFKA_TOPICS: account,transaction
+  - name: postgres
+    data: my-data/sql
+run: #how to run your app/job, can run multiple, run in order
+  - command: ./my-app/run-app.sh
+    #    command: java -jar build/target/my-app.jar
+    #    command: docker run -p 8080:8080 my-image:${APP_VERSION:-1.3.1}  #allow for env variable substitution anywhere in the YAML
+    env:
+      - APP_VERSION=1.3.1
+    test: #using data-caterer, generate and validate data
+      #docker:
+      #image: data-caterer-example:0.10.10  #can use packaged docker image
+      #env: []  #define additional env vars for data-caterer image
+      relationship:
+        kafka_accounts.account_id:
+          - kafka_transactions.account_id
+      generation:
+        kafka: #name matches with service from above or could point to application (i.e. REST API)
+          - name: kafka_accounts
+            options:
+              topic: account
+          - name: kafka_transactions
+            options:
+              topic: transaction
+      validation:
+        postgres:
+          - options:
+              table: account.accounts
+            validations:
+              - expr: ISNOTNULL(account_id)
+              - aggType: count
+                expr: count == 1000
+          - options:
+              table: account.transactions
+            validations:
+              - expr: amount < 1000
+options: #additional options
+  keepAlive: true #could allow services to be kept alive after running
+  deleteData: false #retain data for further investigation/debugging/testing

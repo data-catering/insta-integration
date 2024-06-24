@@ -1,19 +1,35 @@
-name: 'The name of your action here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'Data Caterer data flow testing'
+description: 'Run integration tests for your application or job'
+author: 'Data Catering'
 
 # Define your inputs here.
 inputs:
-  milliseconds:
-    description: 'Your input description here'
-    required: true
-    default: '1000'
+  configuration-file:
+    description: 'File path to Data Caterer configuration file'
+    default: 'data-caterer.yaml'
+  insta-infra-folder:
+    description: 'Folder to insta-infra'
+    default: 'data-caterer-integration-test/insta-infra'
 
 # Define your outputs here.
 outputs:
-  time:
-    description: 'Your output description here'
+  results:
+    description: 'Result of integration tests'
 
 runs:
-  using: node20
-  main: dist/index.js
+  using: 'composite'
+  steps:
+    - uses: actions/checkout@v4
+    - name: Checkout insta-infra repo
+      uses: actions/checkout@v4
+      with:
+        repository: data-catering/insta-infra
+        path: data-caterer-integration-test/insta-infra
+    - name: Run integration tests
+      uses: actions/github-script@v7
+      with:
+        configuration-file: ${{ inputs.configuration-file }}
+        insta-infra-folder: ${{ inputs.insta-infra-folder }}
+        script: |
+          const script = require("${{github.action_path}}/dist/index.js")
+          script({core})

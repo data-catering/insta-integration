@@ -1,0 +1,17 @@
+services:
+  - name: kafka
+    env:
+      KAFKA_TOPICS: account
+  - name: postgres
+    data: my-data/sql
+run:
+  - command: ./my-app/run-app.sh
+    test:
+      generation:
+        - service: kafka
+          options:
+            topic: account
+      validation:
+        - service: postgres
+          options:
+            table: account.accounts

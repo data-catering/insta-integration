@@ -1,0 +1,317 @@
+const baseApplicationConf = () => `
+flags {
+    enableCount = false
+    enableCount = \${?ENABLE_COUNT}
+    enableGenerateData = true
+    enableGenerateData = \${?ENABLE_GENERATE_DATA}
+    enableGeneratePlanAndTasks = false
+    enableGeneratePlanAndTasks = \${?ENABLE_GENERATE_PLAN_AND_TASKS}
+    enableRecordTracking = true
+    enableRecordTracking = \${?ENABLE_RECORD_TRACKING}
+    enableDeleteGeneratedRecords = false
+    enableDeleteGeneratedRecords = \${?ENABLE_DELETE_GENERATED_RECORDS}
+    enableFailOnError = true
+    enableFailOnError = \${?ENABLE_FAIL_ON_ERROR}
+    enableUniqueCheck = true
+    enableUniqueCheck = \${?ENABLE_UNIQUE_CHECK}
+    enableSinkMetadata = true
+    enableSinkMetadata = \${?ENABLE_SINK_METADATA}
+    enableSaveReports = true
+    enableSaveReports = \${?ENABLE_SAVE_REPORTS}
+    enableValidation = true
+    enableValidation = \${?ENABLE_VALIDATION}
+    enableGenerateValidations = false
+    enableGenerateValidations = \${?ENABLE_GENERATE_VALIDATIONS}
+    enableAlerts = false
+    enableAlerts = \${?ENABLE_ALERTS}
+}
+
+folders {
+    generatedPlanAndTaskFolderPath = "/opt/app/custom/generated"
+    generatedPlanAndTaskFolderPath = \${?GENERATED_PLAN_AND_TASK_FOLDER_PATH}
+    planFilePath = "/opt/app/custom/plan/data-generation-plan.yaml"
+    planFilePath = \${?PLAN_FILE_PATH}
+    taskFolderPath = "/opt/app/custom/task"
+    taskFolderPath = \${?TASK_FOLDER_PATH}
+    recordTrackingFolderPath = "/opt/app/shared/data/generated/record-tracking"
+    recordTrackingFolderPath = \${?RECORD_TRACKING_FOLDER_PATH}
+    generatedReportsFolderPath = "/opt/app/custom/report"
+    generatedReportsFolderPath = \${?GENERATED_REPORTS_FOLDER_PATH}
+    validationFolderPath = "/opt/app/custom/validation"
+    validationFolderPath = \${?VALIDATION_FOLDER_PATH}
+}
+
+metadata {
+    numRecordsFromDataSource = 10000
+    numRecordsFromDataSource = \${?METADATA_NUM_RECORDS_FROM_DATA_SOURCE}
+    numRecordsForAnalysis = 10000
+    numRecordsForAnalysis = \${?METADATA_NUM_RECORDS_FOR_ANALYSIS}
+    oneOfDistinctCountVsCountThreshold = 0.1
+    oneOfDistinctCountVsCountThreshold = \${?METADATA_ONE_OF_DISTINCT_COUNT_VS_COUNT_THRESHOLD}
+    oneOfMinCount = 1000
+    oneOfMinCount = \${?ONE_OF_MIN_COUNT}
+    numGeneratedSamples = 10
+    numGeneratedSamples = \${?NUM_GENERATED_SAMPLES}
+}
+
+generation {
+    numRecordsPerBatch = 100000
+    numRecordsPerBatch = \${?GENERATION_NUM_RECORDS_PER_BATCH}
+}
+
+validation {
+    numSampleErrorRecords = 5
+    numSampleErrorRecords = \${?NUM_SAMPLE_ERROR_RECORDS}
+    enableDeleteRecordTrackingFiles = true
+    enableDeleteRecordTrackingFiles = \${?ENABLE_DELETE_RECORD_TRACKING_FILES}
+}
+
+alert {
+    triggerOn = "all"
+    triggerOn = \${?ALERT_TRIGGER_ON}
+    slackAlertConfig {
+        token = ""
+        token = \${?ALERT_SLACK_TOKEN}
+        channels = []
+        channels = \${?ALERT_SLACK_CHANNELS}
+    }
+}
+
+runtime {
+    master = "local[*]"
+    master = \${?DATA_CATERER_MASTER}
+    config {
+        "spark.driver.memory" = "2g"
+        "spark.executor.memory" = "2g"
+        "spark.sql.cbo.enabled" = "true"
+        "spark.sql.adaptive.enabled" = "true"
+        "spark.sql.cbo.planStats.enabled" = "true"
+        "spark.sql.legacy.allowUntypedScalaUDF" = "true"
+        "spark.sql.statistics.histogram.enabled" = "true"
+        "spark.sql.shuffle.partitions" = "10"
+        "spark.sql.catalog.postgres" = ""
+        "spark.sql.catalog.cassandra" = "com.datastax.spark.connector.datasource.CassandraCatalog"
+        "spark.hadoop.fs.s3a.directory.marker.retention" = "keep"
+        "spark.hadoop.fs.s3a.bucket.all.committer.magic.enabled" = "true"
+    }
+}
+
+# connection type
+jdbc {
+    postgres {
+        url = "jdbc:postgresql://localhost:5432/customer"
+        url = \${?POSTGRES_URL}
+        user = "postgres"
+        user = \${?POSTGRES_USER}
+        password = "postgres"
+        password = \${?POSTGRES_PASSWORD}
+        driver = "org.postgresql.Driver"
+    }
+    mysql {
+        url = "jdbc:mysql://localhost:3306/customer"
+        url = \${?MYSQL_URL}
+        user = "root"
+        user = \${?MYSQL_USER}
+        password = "root"
+        password = \${?MYSQL_PASSWORD}
+        driver = "com.mysql.cj.jdbc.Driver"
+    }
+}
+
+org.apache.spark.sql.cassandra {
+    cassandra {
+        spark.cassandra.connection.host = "localhost"
+        spark.cassandra.connection.host = \${?CASSANDRA_HOST}
+        spark.cassandra.connection.port = "9042"
+        spark.cassandra.connection.port = \${?CASSANDRA_PORT}
+        spark.cassandra.auth.username = "cassandra"
+        spark.cassandra.auth.username = \${?CASSANDRA_USER}
+        spark.cassandra.auth.password = "cassandra"
+        spark.cassandra.auth.password = \${?CASSANDRA_PASSWORD}
+    }
+}
+
+http {
+    httpbin {
+    }
+}
+
+jms {
+    solace {
+        initialContextFactory = "com.solacesystems.jndi.SolJNDIInitialContextFactory"
+        initialContextFactory = \${?SOLACE_INITIAL_CONTEXT_FACTORY}
+        connectionFactory = "/jms/cf/default"
+        connectionFactory = \${?SOLACE_CONNECTION_FACTORY}
+        url = "smf://localhost:55554"
+        url = \${?SOLACE_URL}
+        user = "admin"
+        user = \${?SOLACE_USER}
+        password = "admin"
+        password = \${?SOLACE_PASSWORD}
+        vpnName = "default"
+        vpnName = \${?SOLACE_VPN}
+    }
+}
+
+kafka {
+    kafka {
+        kafka.bootstrap.servers = "localhost:9092"
+        kafka.bootstrap.servers = \${?KAFKA_BOOTSTRAP_SERVERS}
+    }
+}
+
+csv {
+    csv {
+        path = "/opt/app/data/csv"
+        path = \${?CSV_PATH}
+    }
+}
+
+delta {
+    delta {
+        path = "/opt/app/data/delta"
+        path = \${?DELTA_PATH}
+    }
+}
+
+iceberg {
+    iceberg {
+        path = "/opt/app/data/iceberg"
+        path = \${?ICEBERG_WAREHOUSE_PATH}
+        catalogType = "hadoop"
+        catalogType = \${?ICEBERG_CATALOG_TYPE}
+        catalogUri = ""
+        catalogUri = \${?ICEBERG_CATALOG_URI}
+    }
+}
+
+json {
+    json {
+        path = "/opt/app/data/json"
+        path = \${?JSON_PATH}
+    }
+}
+
+orc {
+    orc {
+        path = "/opt/app/data/orc"
+        path = \${?JSON_PATH}
+    }
+}
+
+parquet {
+    parquet {
+        path = "/opt/app/data/parquet"
+        path = \${?PARQUET_PATH}
+    }
+}
+
+datastax-java-driver.advanced.metadata.schema.refreshed-keyspaces = [ "/.*/" ]
+`
+
+/**
+ * name: "account_create_plan"
+ * description: "Create account data in JSON"
+ * tasks:
+ *   - name: "json_account_jms"
+ *     dataSourceName: "solace"
+ *     enabled: false
+ *   - name: "json_account_file"
+ *     dataSourceName: "json"
+ *     enabled: true
+ *
+ * sinkOptions:
+ *   foreignKeys:
+ *     - - "solace.jms_account.account_id"
+ *       - - "json.file_account.account_id"
+ *       - []
+ *
+ * validations:
+ *   - "account_checks"
+ * @type {function(): {name: string, description: string, sinkOptions: {foreignKeys: []}, tasks: []}}
+ */
+const basePlan = () => {
+  return {
+    name: 'my-plan',
+    description: 'my-description',
+    tasks: [],
+    sinkOptions: {
+      foreignKeys: []
+    }
+  }
+}
+
+/**
+ * name: "csv_transaction_file"
+ * steps:
+ *   - name: "transactions"
+ *     type: "csv"
+ *     options: { }
+ *     count:
+ *       records: 1000
+ *       perColumn:
+ *         columnNames:
+ *           - "account_id"
+ *           - "name"
+ *         generator:
+ *           type: "random"
+ *           options:
+ *             max: 10
+ *             min: 1
+ *     schema:
+ *       fields:
+ *         - name: "account_id"
+ * @type {function(): {name: string, steps: []}}
+ */
+const baseTask = () => {
+  return {
+    name: 'my-data-generation-task',
+    steps: []
+  }
+}
+
+/**
+ * name: "account_checks"
+ * description: "Check account related fields have gone through system correctly"
+ * dataSources:
+ *   json:
+ *     options:
+ *       path: "app/src/test/resources/sample/json/txn-gen"
+ *     validations:
+ *       - whereExpr: "amount < 100"
+ *       - whereExpr: "year == 2021"
+ *         errorThreshold: 0.1
+ * @type {(function(): *)|*}
+ */
+const baseValidation = () => {
+  return {
+    name: 'my-data-validation',
+    description: 'my-validations',
+    dataSources: {}
+  }
+}
+
+function createDataCatererDockerRunCommand(
+  basicImage,
+  version,
+  sharedFolder,
+  confFolder,
+  planName
+) {
+  const imageName = basicImage ? 'data-caterer-basic' : 'data-caterer'
+  return `docker run -p 4040:4040 \
+  -v ${confFolder}:/opt/app/custom \
+  -v ${sharedFolder}:/opt/app/shared \
+  -e LOG_LEVEL=debug \
+  -e APPLICATION_CONFIG_PATH=/opt/app/custom/application.conf \
+  -e PLAN_FILE_PATH=/opt/app/custom/plan/${planName} \
+  datacatering/${imageName}:${version}`
+}
+
+module.exports = {
+  baseTask,
+  basePlan,
+  baseValidation,
+  baseApplicationConf,
+  createDataCatererDockerRunCommand
+}
