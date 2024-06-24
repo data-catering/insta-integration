@@ -7551,8 +7551,12 @@ const execSync = (__nccwpck_require__(2081).execSync)
  */
 async function run() {
   try {
-    const configFile = core.getInput('configuration-file', {})
-    const instaInfraFolder = core.getInput('insta-infra-folder', {})
+    const configFile = process.env.CONFIGURATION_FILE
+      ? process.env.CONFIGURATION_FILE
+      : core.getInput('configuration-file', {})
+    const instaInfraFolder = process.env.INSTA_INFRA_FOLDER
+      ? process.env.INSTA_INFRA_FOLDER
+      : core.getInput('insta-infra-folder', {})
 
     // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
     core.debug(`Using config file: ${configFile}`)
