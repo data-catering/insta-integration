@@ -243,9 +243,9 @@ function extractDataValidations(testConfig, appIndex, currValidations) {
 function runDataCaterer(testConfig, appIndex) {
   // Use template plan and task YAML files
   // Also, template application.conf
-  const currentPlan = basePlan
-  const currentTask = baseTask
-  const currValidations = baseValidation
+  const currentPlan = basePlan()
+  const currentTask = baseTask()
+  const currValidations = baseValidation()
   const generationTaskToServiceMapping = {}
   extractDataGenerationTasks(
     testConfig,
@@ -302,7 +302,7 @@ function runTests(parsedConfig, configFileDirectory) {
       writeToFile(
         configurationFolder,
         'application.conf',
-        baseApplicationConf,
+        baseApplicationConf(),
         true
       )
       if (
