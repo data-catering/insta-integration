@@ -1,6 +1,9 @@
 name: 'Data Caterer data flow testing'
 description: 'Run integration tests for your application or job'
 author: 'Data Catering'
+branding:
+  icon: check-square
+  color: purple
 
 # Define your inputs here.
 inputs:
