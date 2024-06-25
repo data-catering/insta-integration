@@ -47,4 +47,5 @@ jobs:
           VALIDATE_ALL_CODEBASE: true
           VALIDATE_GITLEAKS: false
           VALIDATE_JSCPD: false
+          VALIDATE_SHELL_SHFMT: false
           VALIDATE_SQLFLUFF: false
