@@ -3,4 +3,8 @@
  */
 const { run } = require('./main')
 
-run()
+function script() {
+  run()
+}
+
+module.exports = { script }

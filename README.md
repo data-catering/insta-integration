@@ -59,7 +59,7 @@ need to perform some initial setup steps before you can develop your action.
    ```bash
    $ npm test
 
-   PASS  ./index.test.js
+   PASS  ./index.xtest.js
      ✓ throws invalid number (3ms)
      ✓ wait 500 ms (504ms)
      ✓ test runs (95ms)
@@ -204,15 +204,15 @@ steps:
     run: echo "${{ steps.run-action.outputs.time }}"
 ```
 
-# Automatic Integration Tests via GitHub Actions
+## Automatic Integration Tests via GitHub Actions
 
 1. Create pull request
-2. Triggers GitHub action
-3. Sets up services via insta-infra
-4. Data generated via data-caterer
-5. Results published to pull request
+1. Triggers GitHub action
+1. Sets up services via insta-infra
+1. Data generated via data-caterer
+1. Results published to pull request
 
-# Setup
+## Setup
 
 - Create new GitHub application
 - Follows similar flow to renovatebot
@@ -222,14 +222,14 @@ steps:
         requirements.txt, etc.)
     - Users can manually add the services their app interacts with (i.e.
       Postgres, MySQL)
-  - The target repo could be one or more apps/jobs
+  - The target repository could be one or more apps/jobs
     - Need to know how to run their app/job
     - Use docker image by default, otherwise build and start script could be
       provided by user
     - Use default credentials of each service
   - Ability to define custom data generation/validation with YAML
 
-# Example Flow
+### Example Flow
 
 GitHub Action YAML
 
@@ -260,7 +260,8 @@ services: #what external services your app/job connects to
 run: #how to run your app/job, can run multiple, run in order
   - command: ./run-app.sh
     #    command: java -jar build/target/my-app.jar
-    #    command: docker run -p 8080:8080 my-image:${APP_VERSION:-1.3.1}  #allow for env variable substitution anywhere in the YAML
+    #    command: docker run -p 8080:8080 my-image:${APP_VERSION:-1.3.1}
+    #allow for env variable substitution anywhere in the YAML
     env:
       - APP_VERSION=1.3.1
     test: #using data-caterer, generate and validate data

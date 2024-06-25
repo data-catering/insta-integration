@@ -7169,9 +7169,6 @@ const {
   createDataCatererDockerRunCommand
 } = __nccwpck_require__(4570)
 
-const baseFolder = '/tmp/data-caterer'
-const configurationFolder = `${baseFolder}/conf`
-const sharedFolder = `${baseFolder}/shared`
 const dataCatererVersion = '0.11.1'
 
 /**
@@ -7399,12 +7396,17 @@ function extractDataValidations(testConfig, appIndex, currValidations) {
   }
 }
 
-function runDataCaterer(testConfig, appIndex) {
+function runDataCaterer(
+  testConfig,
+  appIndex,
+  configurationFolder,
+  sharedFolder
+) {
   // Use template plan and task YAML files
   // Also, template application.conf
-  const currentPlan = basePlan
-  const currentTask = baseTask
-  const currValidations = baseValidation
+  const currentPlan = basePlan()
+  const currentTask = baseTask()
+  const currValidations = baseValidation()
   const generationTaskToServiceMapping = {}
   extractDataGenerationTasks(
     testConfig,
@@ -7435,7 +7437,7 @@ function runDataCaterer(testConfig, appIndex) {
   execSync(dockerRunCommand)
 }
 
-function cleanAppDoneFiles(parsedConfig) {
+function cleanAppDoneFiles(parsedConfig, sharedFolder) {
   // Clean up 'app-*-done' files in shared directory
   for (const [i] of parsedConfig.run.entries()) {
     try {
@@ -7446,8 +7448,13 @@ function cleanAppDoneFiles(parsedConfig) {
   }
 }
 
-function runTests(parsedConfig, configFileDirectory) {
+function runTests(parsedConfig, configFileDirectory, baseFolder) {
   let testResult = ''
+  const configurationFolder = `${baseFolder}/conf`
+  const sharedFolder = `${baseFolder}/shared`
+  fs.mkdirSync(configurationFolder, { recursive: true })
+  fs.mkdirSync(sharedFolder, { recursive: true })
+
   if (parsedConfig.run) {
     for (const [i, runConf] of parsedConfig.run.entries()) {
       // Need to know whether to run application first or data generation
@@ -7461,7 +7468,7 @@ function runTests(parsedConfig, configFileDirectory) {
       writeToFile(
         configurationFolder,
         'application.conf',
-        baseApplicationConf,
+        baseApplicationConf(),
         true
       )
       if (
@@ -7471,7 +7478,12 @@ function runTests(parsedConfig, configFileDirectory) {
         !runConf.generateFirst
       ) {
         core.info('Running data caterer')
-        testResult = runDataCaterer(runConf.test, i)
+        testResult = runDataCaterer(
+          runConf.test,
+          i,
+          configurationFolder,
+          sharedFolder
+        )
         core.info('Running application/job')
         execSync(runConf.command, { cwd: configFileDirectory })
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
@@ -7480,10 +7492,15 @@ function runTests(parsedConfig, configFileDirectory) {
         execSync(runConf.command, { cwd: configFileDirectory })
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
         core.info('Running data caterer')
-        testResult = runDataCaterer(runConf.test, i)
+        testResult = runDataCaterer(
+          runConf.test,
+          i,
+          configurationFolder,
+          sharedFolder
+        )
       }
     }
-    cleanAppDoneFiles(parsedConfig)
+    cleanAppDoneFiles(parsedConfig, sharedFolder)
   }
 }
 
@@ -7497,9 +7514,10 @@ function runTests(parsedConfig, configFileDirectory) {
  * - Return back summarised results
  * @param configFile Base configuration file defining requirements for integration tests
  * @param instaInfraFolder  Folder where insta-infra is checked out
+ * @param baseFolder Folder where execution files get saved
  * @returns {string}  Results of data-caterer
  */
-function runIntegrationTests(configFile, instaInfraFolder) {
+function runIntegrationTests(configFile, instaInfraFolder, baseFolder) {
   if (instaInfraFolder.includes(' ')) {
     throw new Error(`Invalid insta-infra folder pathway=${instaInfraFolder}`)
   }
@@ -7523,7 +7541,7 @@ function runIntegrationTests(configFile, instaInfraFolder) {
     })
   }
 
-  const testResults = runTests(parsedConfig, configFileDirectory)
+  const testResults = runTests(parsedConfig, configFileDirectory, baseFolder)
   core.info('Finished tests!')
   return testResults
 }
@@ -7531,6 +7549,23 @@ function runIntegrationTests(configFile, instaInfraFolder) {
 module.exports = { runIntegrationTests }
 
 // runIntegrationTests('example/file.yaml', '../insta-infra')
+
+
+/***/ }),
+
+/***/ 4351:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+/**
+ * The entrypoint for the action.
+ */
+const { run } = __nccwpck_require__(1713)
+
+function script() {
+  run()
+}
+
+module.exports = { script }
 
 
 /***/ }),
@@ -7551,13 +7586,21 @@ const execSync = (__nccwpck_require__(2081).execSync)
  */
 async function run() {
   try {
-    const configFile = core.getInput('configuration-file', {})
-    const instaInfraFolder = core.getInput('insta-infra-folder', {})
+    const configFile = process.env.CONFIGURATION_FILE
+      ? process.env.CONFIGURATION_FILE
+      : core.getInput('configuration_file', {})
+    const instaInfraFolder = process.env.INSTA_INFRA_FOLDER
+      ? process.env.INSTA_INFRA_FOLDER
+      : core.getInput('insta_infra_folder', {})
+    const baseFolder = process.env.BASE_FOLDER
+      ? process.env.BASE_FOLDER
+      : core.getInput('base_folder', {})
 
     // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
     core.debug(`Using config file: ${configFile}`)
     core.debug(`Using insta-infra folder: ${instaInfraFolder}`)
-    const result = runIntegrationTests(configFile, instaInfraFolder)
+    core.debug(`Using base folder: ${baseFolder}`)
+    const result = runIntegrationTests(configFile, instaInfraFolder, baseFolder)
 
     // Set outputs for other workflow steps to use
     core.setOutput('results', result)
@@ -7732,19 +7775,13 @@ module.exports = require("util");
 /******/ 	if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = __dirname + "/";
 /******/ 	
 /************************************************************************/
-var __webpack_exports__ = {};
-// This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
-(() => {
-/**
- * The entrypoint for the action.
- */
-const { run } = __nccwpck_require__(1713)
-
-run()
-
-})();
-
-module.exports = __webpack_exports__;
+/******/ 	
+/******/ 	// startup
+/******/ 	// Load entry module and return exports
+/******/ 	// This entry module is referenced by other modules so it can't be inlined
+/******/ 	var __webpack_exports__ = __nccwpck_require__(4351);
+/******/ 	module.exports = __webpack_exports__;
+/******/ 	
 /******/ })()
 ;
 //# sourceMappingURL=index.js.map
