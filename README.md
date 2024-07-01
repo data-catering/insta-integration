@@ -29,6 +29,7 @@ Automated integration tests for any application or job.
    ```
 
 2. Create YAML file `data-caterer.yaml`
+
    1. For the latest supported services,
       [check here](https://github.com/data-catering/insta-infra?tab=readme-ov-file#services).
       Supported services include: activemq, airflow, cassandra, clickhouse,
@@ -37,7 +38,7 @@ Automated integration tests for any application or job.
       mariadb, marquez, minio, mongodb, mysql, neo4j, pinot, postgres, prefect,
       presto, rabbitmq, solace, spanner, sqlite, temporal, trino, unitycatalog,
       zookeeper
-   
+
    ```yaml
    services: []
    run:
