@@ -1,3 +1,4 @@
+const process = require('process')
 const baseApplicationConf = () => `
 flags {
     enableCount = true
@@ -319,11 +320,17 @@ function createDataCatererDockerRunCommand(
   for (const [key, value] of Object.entries(envVars)) {
     dockerEnvVars.push(`-e ${key}=${value}`)
   }
+  const uid = process.getuid()
+  const gid = process.getgid()
+  const setUser = `addgroup -G github && adduser -G github -u ${uid} github`
+  const setUserInPasswd = `echo "${uid}:x:${uid}:${gid}:github:/opt/app:/sbin/nologin" >> /etc/passwd`
+  ///bin/bash -c '${setUserInPasswd} && ${setUser} && cat /etc/passwd && bash /opt/app/run-data-caterer.sh'`
   return `docker run -d -p 4040:4040 \
   --network insta-infra_default \
+  --name data-caterer \
+  --user ${uid}:${gid} \
   -v ${confFolder}:/opt/app/custom \
   -v ${sharedFolder}:/opt/app/shared \
-  -e LOG_LEVEL=debug \
   -e APPLICATION_CONFIG_PATH=/opt/app/custom/application.conf \
   -e PLAN_FILE_PATH=/opt/app/custom/plan/${planName} \
   ${dockerEnvVars.join(' ')} \

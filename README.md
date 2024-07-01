@@ -107,3 +107,10 @@ options: #additional options
 ```shell
 CONFIGURATION_FILE=example/postgres-to-csv.yaml INSTA_INFRA_FOLDER=../insta-infra BASE_FOLDER=/tmp/data-caterer-action node src/index.js
 ```
+
+docker run --entrypoint /bin/bash -it datacatering/data-caterer-basic:0.11.2 -c
+'echo "1001:x:1001:127:github:/opt/app:/sbin/nologin" >> /etc/passwd && addgroup
+-G github && adduser -G github -u 1001 github && cat /etc/passwd && bash
+/opt/app/run-data-caterer.sh' docker run --entrypoint /bin/bash -it
+datacatering/data-caterer-basic:0.11.2 -c 'adduser -G github -u 1001 github &&
+cat /etc/passwd && bash /opt/app/run-data-caterer.sh'

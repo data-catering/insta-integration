@@ -166,7 +166,7 @@ function extractDataGenerationTasks(
       currentTasks.push(task)
     }
 
-    // Need to add data gen task to notify this process that data caterer is one generating data and application can run
+    // Need to add data gen task to notify this process that data caterer is done generating data and application can run
     if (currentPlan.tasks.some(t => t.dataSourceName === 'csv')) {
       const csvTask = currentTasks.find(t => t.name === 'csv-task')
       csvTask.steps.push(notifyGenerationDoneTask())
@@ -258,6 +258,19 @@ function extractDataCatererEnv(testConfig) {
   return testConfig.env ? testConfig.env : {}
 }
 
+function createDockerNetwork() {
+  // Check if network is created, create if it isn't
+  try {
+    const network_details = execSync('docker network ls')
+    if (!network_details.toString().includes('insta-infra_default')) {
+      core.info('Creating docker network: insta-infra_default')
+      execSync('docker network create insta-infra_default')
+    }
+  } catch (error) {
+    core.error(error)
+  }
+}
+
 function runDataCaterer(
   testConfig,
   appIndex,
@@ -293,6 +306,7 @@ function runDataCaterer(
     'my-validations.yaml',
     currValidations
   )
+  createDockerNetwork()
   const dockerRunCommand = createDataCatererDockerRunCommand(
     true,
     dataCatererVersion,
@@ -301,21 +315,8 @@ function runDataCaterer(
     'my-plan.yaml',
     dataCatererEnv
   )
-  // Check if network is created, create if it isn't
-  try {
-    const network_details = execSync(
-      'docker network ls | grep insta-infra_default'
-    )
-    if (network_details.length === 0) {
-      core.debug('Creating docker network: insta-infra_default')
-      execSync('docker create network insta-infra_default')
-    }
-  } catch (error) {
-    core.error(error)
-    throw new Error(error)
-  }
 
-  core.debug(
+  core.info(
     `Running docker command for data-caterer, command=${dockerRunCommand}`
   )
   execSync(dockerRunCommand)
@@ -338,8 +339,12 @@ async function checkExistsWithTimeout(filePath, timeout = 60000) {
   await new Promise(function (resolve, reject) {
     const timer = setTimeout(function () {
       watcher.close()
+      core.info('Checking data-caterer logs')
+      core.info(execSync('docker logs data-caterer').toString())
       reject(
-        new Error('File did not exists and was not created during the timeout.')
+        new Error(
+          `File did not exist and was not created during the timeout, file=${filePath}`
+        )
       )
     }, timeout)
 
@@ -362,7 +367,7 @@ async function checkExistsWithTimeout(filePath, timeout = 60000) {
     })
   })
   await new Promise(resolve => {
-    setTimeout(resolve, 500)
+    setTimeout(resolve, 1000)
   })
 }
 
@@ -370,6 +375,8 @@ async function waitForDataGeneration(sharedFolder) {
   // For applications/jobs that rely on data to be generated first before running, we wait until data caterer has
   // created a csv file to notify us that it has completed generating data
   const notifyFilePath = `${sharedFolder}/notify/data-gen-done`
+  fs.mkdirSync(`${sharedFolder}/notify`, { recursive: true })
+  fs.writeFileSync(`${sharedFolder}/notify/empty.txt`, '')
   await checkExistsWithTimeout(notifyFilePath)
   core.debug('Removing data generation done folder')
   try {
@@ -386,6 +393,8 @@ async function runTests(parsedConfig, configFileDirectory, baseFolder) {
   let testResult = ''
   const configurationFolder = `${baseFolder}/conf`
   const sharedFolder = `${baseFolder}/shared`
+  core.debug(`Using data caterer configuration folder: ${configurationFolder}`)
+  core.info(`Using shared folder: ${sharedFolder}`)
   fs.mkdirSync(configurationFolder, { recursive: true })
   fs.mkdirSync(sharedFolder, { recursive: true })
 
@@ -418,6 +427,7 @@ async function runTests(parsedConfig, configFileDirectory, baseFolder) {
           configurationFolder,
           sharedFolder
         )
+        core.info('Waiting for data generation to be completed')
         await waitForDataGeneration(sharedFolder, i)
         core.info('Running application/job')
         execSync(runConf.command, { cwd: configFileDirectory })
@@ -452,7 +462,11 @@ async function runTests(parsedConfig, configFileDirectory, baseFolder) {
  * @param baseFolder Folder where execution files get saved
  * @returns {string}  Results of data-caterer
  */
-function runIntegrationTests(applicationConfig, instaInfraFolder, baseFolder) {
+async function runIntegrationTests(
+  applicationConfig,
+  instaInfraFolder,
+  baseFolder
+) {
   if (instaInfraFolder.includes(' ')) {
     throw new Error(`Invalid insta-infra folder pathway=${instaInfraFolder}`)
   }
@@ -478,7 +492,7 @@ function runIntegrationTests(applicationConfig, instaInfraFolder, baseFolder) {
     })
   }
 
-  const testResults = runTests(
+  const testResults = await runTests(
     parsedConfig,
     applicationConfigDirectory,
     baseFolder

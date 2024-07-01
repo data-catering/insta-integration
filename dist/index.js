@@ -6831,8 +6831,9 @@ exports["default"] = _default;
 /***/ }),
 
 /***/ 4570:
-/***/ ((module) => {
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
+const process = __nccwpck_require__(7282)
 const baseApplicationConf = () => `
 flags {
     enableCount = true
@@ -7154,11 +7155,17 @@ function createDataCatererDockerRunCommand(
   for (const [key, value] of Object.entries(envVars)) {
     dockerEnvVars.push(`-e ${key}=${value}`)
   }
+  const uid = process.getuid()
+  const gid = process.getgid()
+  const setUser = `addgroup -G github && adduser -G github -u ${uid} github`
+  const setUserInPasswd = `echo "${uid}:x:${uid}:${gid}:github:/opt/app:/sbin/nologin" >> /etc/passwd`
+  ///bin/bash -c '${setUserInPasswd} && ${setUser} && cat /etc/passwd && bash /opt/app/run-data-caterer.sh'`
   return `docker run -d -p 4040:4040 \
   --network insta-infra_default \
+  --name data-caterer \
+  --user ${uid}:${gid} \
   -v ${confFolder}:/opt/app/custom \
   -v ${sharedFolder}:/opt/app/shared \
-  -e LOG_LEVEL=debug \
   -e APPLICATION_CONFIG_PATH=/opt/app/custom/application.conf \
   -e PLAN_FILE_PATH=/opt/app/custom/plan/${planName} \
   ${dockerEnvVars.join(' ')} \
@@ -7348,7 +7355,7 @@ function extractDataGenerationTasks(
       currentTasks.push(task)
     }
 
-    // Need to add data gen task to notify this process that data caterer is one generating data and application can run
+    // Need to add data gen task to notify this process that data caterer is done generating data and application can run
     if (currentPlan.tasks.some(t => t.dataSourceName === 'csv')) {
       const csvTask = currentTasks.find(t => t.name === 'csv-task')
       csvTask.steps.push(notifyGenerationDoneTask())
@@ -7440,6 +7447,19 @@ function extractDataCatererEnv(testConfig) {
   return testConfig.env ? testConfig.env : {}
 }
 
+function createDockerNetwork() {
+  // Check if network is created, create if it isn't
+  try {
+    const network_details = execSync('docker network ls')
+    if (!network_details.toString().includes('insta-infra_default')) {
+      core.info('Creating docker network: insta-infra_default')
+      execSync('docker network create insta-infra_default')
+    }
+  } catch (error) {
+    core.error(error)
+  }
+}
+
 function runDataCaterer(
   testConfig,
   appIndex,
@@ -7475,6 +7495,7 @@ function runDataCaterer(
     'my-validations.yaml',
     currValidations
   )
+  createDockerNetwork()
   const dockerRunCommand = createDataCatererDockerRunCommand(
     true,
     dataCatererVersion,
@@ -7483,21 +7504,8 @@ function runDataCaterer(
     'my-plan.yaml',
     dataCatererEnv
   )
-  // Check if network is created, create if it isn't
-  try {
-    const network_details = execSync(
-      'docker network ls | grep insta-infra_default'
-    )
-    if (network_details.length === 0) {
-      core.debug('Creating docker network: insta-infra_default')
-      execSync('docker create network insta-infra_default')
-    }
-  } catch (error) {
-    core.error(error)
-    throw new Error(error)
-  }
 
-  core.debug(
+  core.info(
     `Running docker command for data-caterer, command=${dockerRunCommand}`
   )
   execSync(dockerRunCommand)
@@ -7520,8 +7528,12 @@ async function checkExistsWithTimeout(filePath, timeout = 60000) {
   await new Promise(function (resolve, reject) {
     const timer = setTimeout(function () {
       watcher.close()
+      core.info('Checking data-caterer logs')
+      core.info(execSync('docker logs data-caterer').toString())
       reject(
-        new Error('File did not exists and was not created during the timeout.')
+        new Error(
+          `File did not exist and was not created during the timeout, file=${filePath}`
+        )
       )
     }, timeout)
 
@@ -7544,7 +7556,7 @@ async function checkExistsWithTimeout(filePath, timeout = 60000) {
     })
   })
   await new Promise(resolve => {
-    setTimeout(resolve, 500)
+    setTimeout(resolve, 1000)
   })
 }
 
@@ -7552,6 +7564,8 @@ async function waitForDataGeneration(sharedFolder) {
   // For applications/jobs that rely on data to be generated first before running, we wait until data caterer has
   // created a csv file to notify us that it has completed generating data
   const notifyFilePath = `${sharedFolder}/notify/data-gen-done`
+  fs.mkdirSync(`${sharedFolder}/notify`, { recursive: true })
+  fs.writeFileSync(`${sharedFolder}/notify/empty.txt`, '')
   await checkExistsWithTimeout(notifyFilePath)
   core.debug('Removing data generation done folder')
   try {
@@ -7568,6 +7582,8 @@ async function runTests(parsedConfig, configFileDirectory, baseFolder) {
   let testResult = ''
   const configurationFolder = `${baseFolder}/conf`
   const sharedFolder = `${baseFolder}/shared`
+  core.debug(`Using data caterer configuration folder: ${configurationFolder}`)
+  core.info(`Using shared folder: ${sharedFolder}`)
   fs.mkdirSync(configurationFolder, { recursive: true })
   fs.mkdirSync(sharedFolder, { recursive: true })
 
@@ -7600,6 +7616,7 @@ async function runTests(parsedConfig, configFileDirectory, baseFolder) {
           configurationFolder,
           sharedFolder
         )
+        core.info('Waiting for data generation to be completed')
         await waitForDataGeneration(sharedFolder, i)
         core.info('Running application/job')
         execSync(runConf.command, { cwd: configFileDirectory })
@@ -7634,7 +7651,11 @@ async function runTests(parsedConfig, configFileDirectory, baseFolder) {
  * @param baseFolder Folder where execution files get saved
  * @returns {string}  Results of data-caterer
  */
-function runIntegrationTests(applicationConfig, instaInfraFolder, baseFolder) {
+async function runIntegrationTests(
+  applicationConfig,
+  instaInfraFolder,
+  baseFolder
+) {
   if (instaInfraFolder.includes(' ')) {
     throw new Error(`Invalid insta-infra folder pathway=${instaInfraFolder}`)
   }
@@ -7660,7 +7681,7 @@ function runIntegrationTests(applicationConfig, instaInfraFolder, baseFolder) {
     })
   }
 
-  const testResults = runTests(
+  const testResults = await runTests(
     parsedConfig,
     applicationConfigDirectory,
     baseFolder
@@ -7703,20 +7724,23 @@ const { runIntegrationTests } = __nccwpck_require__(401)
  */
 async function run() {
   try {
-    const applicationConfig = process.env.CONFIGURATION_FILE
-      ? process.env.CONFIGURATION_FILE
-      : core.getInput('configuration_file', {})
-    const instaInfraFolder = process.env.INSTA_INFRA_FOLDER
-      ? process.env.INSTA_INFRA_FOLDER
-      : core.getInput('insta_infra_folder', {})
-    const baseFolder = process.env.BASE_FOLDER
-      ? process.env.BASE_FOLDER
-      : core.getInput('base_folder', {})
+    const applicationConfig =
+      core.getInput('configuration_file', {}).length > 0
+        ? core.getInput('configuration_file', {})
+        : process.env.CONFIGURATION_FILE
+    const instaInfraFolder =
+      core.getInput('insta_infra_folder', {}).length > 0
+        ? core.getInput('insta_infra_folder', {})
+        : process.env.INSTA_INFRA_FOLDER
+    const baseFolder =
+      core.getInput('base_folder', {}).length > 0
+        ? core.getInput('base_folder', {}).replace('/./', '')
+        : process.env.BASE_FOLDER.replace('/./', '')
 
     // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-    core.debug(`Using config file: ${applicationConfig}`)
-    core.debug(`Using insta-infra folder: ${instaInfraFolder}`)
-    core.debug(`Using base folder: ${baseFolder}`)
+    core.info(`Using config file: ${applicationConfig}`)
+    core.info(`Using insta-infra folder: ${instaInfraFolder}`)
+    core.info(`Using base folder: ${baseFolder}`)
     const result = runIntegrationTests(
       applicationConfig,
       instaInfraFolder,
@@ -7823,6 +7847,14 @@ module.exports = require("os");
 
 "use strict";
 module.exports = require("path");
+
+/***/ }),
+
+/***/ 7282:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("process");
 
 /***/ }),
 

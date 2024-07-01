@@ -1,6 +1,6 @@
 {
-  "name": "javascript-action",
-  "description": "GitHub Actions JavaScript Template",
+  "name": "data-caterer-action",
+  "description": "Data Caterer GitHub Action",
   "version": "0.1.0",
   "author": "Data Catering",
   "private": true,

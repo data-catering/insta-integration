@@ -58,7 +58,7 @@ jobs:
         uses: ./
         with:
           configuration_file: example/file.yaml
-          base_folder: ./data-caterer
+          base_folder: data-caterer
 
       - name: Print Output
         id: output
