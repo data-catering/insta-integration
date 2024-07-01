@@ -1,9 +1,5 @@
 const core = require('@actions/core')
-const { wait } = require('./wait')
-const yaml = require('js-yaml')
-const fs = require('fs')
 const { runIntegrationTests } = require('./data-caterer')
-const execSync = require('child_process').execSync
 
 /**
  * The main function for the action.
@@ -11,7 +7,7 @@ const execSync = require('child_process').execSync
  */
 async function run() {
   try {
-    const configFile = process.env.CONFIGURATION_FILE
+    const applicationConfig = process.env.CONFIGURATION_FILE
       ? process.env.CONFIGURATION_FILE
       : core.getInput('configuration_file', {})
     const instaInfraFolder = process.env.INSTA_INFRA_FOLDER
@@ -22,10 +18,14 @@ async function run() {
       : core.getInput('base_folder', {})
 
     // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-    core.debug(`Using config file: ${configFile}`)
+    core.debug(`Using config file: ${applicationConfig}`)
     core.debug(`Using insta-infra folder: ${instaInfraFolder}`)
     core.debug(`Using base folder: ${baseFolder}`)
-    const result = runIntegrationTests(configFile, instaInfraFolder, baseFolder)
+    const result = runIntegrationTests(
+      applicationConfig,
+      instaInfraFolder,
+      baseFolder
+    )
 
     // Set outputs for other workflow steps to use
     core.setOutput('results', result)

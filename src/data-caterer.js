@@ -1,4 +1,4 @@
-const { execSync } = require('child_process')
+const { execSync, exec } = require('child_process')
 const core = require('@actions/core')
 const yaml = require('js-yaml')
 const fs = require('fs')
@@ -7,10 +7,12 @@ const {
   basePlan,
   baseTask,
   baseValidation,
-  createDataCatererDockerRunCommand
+  createDataCatererDockerRunCommand,
+  notifyGenerationDoneTask
 } = require('./config')
+const { dirname, basename } = require('node:path')
 
-const dataCatererVersion = '0.11.1'
+const dataCatererVersion = '0.11.2'
 
 /**
  * Check if service names are supported by insta-infra
@@ -91,12 +93,13 @@ function extractServiceNamesAndEnv(parsedConfig, configFileDirectory) {
         const downloadLinkRegex = new RegExp('^http[s?]://.*$')
         if (downloadLinkRegex.test(service.data)) {
           // TODO Then we need to download directory or file
-          console.log('Downloading data is unsupported currently')
+          core.info('Downloading data is currently unsupported')
         } else if (service.data.startsWith('/')) {
           envVars[`${envServiceName}_DATA`] = service.data
         } else {
           // Can be a relative directory from perspective of config YAML
-          const dataPath = configFileDirectory.concat(`/${service.data}`)
+          const dataPath = `${configFileDirectory}/${service.data}`
+          core.debug(`Using env var: ${envServiceName}_DATA -> ${dataPath}`)
           envVars[`${envServiceName}_DATA`] = dataPath
         }
       } else {
@@ -128,7 +131,7 @@ function extractServiceFromGeneration(
 function writeToFile(folder, fileName, content, isPlanText) {
   fs.mkdirSync(folder, { recursive: true })
   const fileContent = isPlanText ? content : yaml.dump(content)
-  core.debug(`Creating application.conf file, file-path=${folder}/${fileName}`)
+  core.debug(`Creating file, file-path=${folder}/${fileName}`)
   fs.writeFileSync(`${folder}/${fileName}`, fileContent, err => {
     if (err) {
       throw err
@@ -139,12 +142,13 @@ function writeToFile(folder, fileName, content, isPlanText) {
 function extractDataGenerationTasks(
   testConfig,
   currentPlan,
-  currentTask,
+  currentTasks,
   generationTaskToServiceMapping
 ) {
   if (testConfig.generation) {
     core.debug('Checking for data generation configurations')
     for (const dataSourceGeneration of Object.entries(testConfig.generation)) {
+      const task = baseTask()
       for (const generationTask of dataSourceGeneration[1]) {
         const taskName = `${dataSourceGeneration[0]}-task`
         const nameWithDataSource = {
@@ -154,11 +158,24 @@ function extractDataGenerationTasks(
         if (!currentPlan.tasks.includes(nameWithDataSource)) {
           currentPlan.tasks.push(nameWithDataSource)
         }
-        currentTask.name = taskName
-        currentTask.steps.push(generationTask)
+        task.name = taskName
+        task.steps.push(generationTask)
         generationTaskToServiceMapping[generationTask.name] =
           dataSourceGeneration[0]
       }
+      currentTasks.push(task)
+    }
+
+    // Need to add data gen task to notify this process that data caterer is one generating data and application can run
+    if (currentPlan.tasks.some(t => t.dataSourceName === 'csv')) {
+      const csvTask = currentTasks.find(t => t.name === 'csv-task')
+      csvTask.steps.push(notifyGenerationDoneTask())
+    } else {
+      currentPlan.tasks.push({ name: 'csv-task', dataSourceName: 'csv' })
+      currentTasks.push({
+        name: 'csv-task',
+        steps: [notifyGenerationDoneTask()]
+      })
     }
   } else {
     core.debug('No data generation tasks defined')
@@ -237,6 +254,10 @@ function extractDataValidations(testConfig, appIndex, currValidations) {
   }
 }
 
+function extractDataCatererEnv(testConfig) {
+  return testConfig.env ? testConfig.env : {}
+}
+
 function runDataCaterer(
   testConfig,
   appIndex,
@@ -246,20 +267,27 @@ function runDataCaterer(
   // Use template plan and task YAML files
   // Also, template application.conf
   const currentPlan = basePlan()
-  const currentTask = baseTask()
+  const currentTasks = []
   const currValidations = baseValidation()
   const generationTaskToServiceMapping = {}
   extractDataGenerationTasks(
     testConfig,
     currentPlan,
-    currentTask,
+    currentTasks,
     generationTaskToServiceMapping
   )
   extractRelationships(testConfig, generationTaskToServiceMapping, currentPlan)
   extractDataValidations(testConfig, appIndex, currValidations)
+  const dataCatererEnv = extractDataCatererEnv(testConfig)
 
   writeToFile(`${configurationFolder}/plan`, 'my-plan.yaml', currentPlan)
-  writeToFile(`${configurationFolder}/task`, 'my-task.yaml', currentTask)
+  for (const currTask of currentTasks) {
+    writeToFile(
+      `${configurationFolder}/task`,
+      `${currTask.name}.yaml`,
+      currTask
+    )
+  }
   writeToFile(
     `${configurationFolder}/validation`,
     'my-validations.yaml',
@@ -270,16 +298,19 @@ function runDataCaterer(
     dataCatererVersion,
     sharedFolder,
     configurationFolder,
-    'my-plan.yaml'
+    'my-plan.yaml',
+    dataCatererEnv
   )
   core.debug(
     `Running docker command for data-caterer, command=${dockerRunCommand}`
   )
   execSync(dockerRunCommand)
+  // core.debug(`Exit code: ${runDocker}`)
 }
 
 function cleanAppDoneFiles(parsedConfig, sharedFolder) {
   // Clean up 'app-*-done' files in shared directory
+  core.debug('Removing files relating to notifying the application is done')
   for (const [i] of parsedConfig.run.entries()) {
     try {
       fs.unlinkSync(`${sharedFolder}/app-${i}-done`)
@@ -289,7 +320,55 @@ function cleanAppDoneFiles(parsedConfig, sharedFolder) {
   }
 }
 
-function runTests(parsedConfig, configFileDirectory, baseFolder) {
+async function checkExistsWithTimeout(filePath, timeout = 60000) {
+  await new Promise(function (resolve, reject) {
+    const timer = setTimeout(function () {
+      watcher.close()
+      reject(
+        new Error('File did not exists and was not created during the timeout.')
+      )
+    }, timeout)
+
+    fs.access(filePath, fs.constants.R_OK, function (err) {
+      if (!err) {
+        clearTimeout(timer)
+        watcher.close()
+        resolve()
+      }
+    })
+
+    const dir = dirname(filePath)
+    const currBasename = basename(filePath)
+    const watcher = fs.watch(dir, function (eventType, filename) {
+      if (eventType === 'rename' && filename === currBasename) {
+        clearTimeout(timer)
+        watcher.close()
+        resolve()
+      }
+    })
+  })
+  await new Promise(resolve => {
+    setTimeout(resolve, 500)
+  })
+}
+
+async function waitForDataGeneration(sharedFolder) {
+  // For applications/jobs that rely on data to be generated first before running, we wait until data caterer has
+  // created a csv file to notify us that it has completed generating data
+  const notifyFilePath = `${sharedFolder}/notify/data-gen-done`
+  await checkExistsWithTimeout(notifyFilePath)
+  core.debug('Removing data generation done folder')
+  try {
+    fs.rmSync(`${sharedFolder}/notify/data-gen-done`, {
+      recursive: true,
+      force: true
+    })
+  } catch (error) {
+    core.warning(error)
+  }
+}
+
+async function runTests(parsedConfig, configFileDirectory, baseFolder) {
   let testResult = ''
   const configurationFolder = `${baseFolder}/conf`
   const sharedFolder = `${baseFolder}/shared`
@@ -325,6 +404,7 @@ function runTests(parsedConfig, configFileDirectory, baseFolder) {
           configurationFolder,
           sharedFolder
         )
+        await waitForDataGeneration(sharedFolder, i)
         core.info('Running application/job')
         execSync(runConf.command, { cwd: configFileDirectory })
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
@@ -353,21 +433,23 @@ function runTests(parsedConfig, configFileDirectory, baseFolder) {
  * - Setup data-caterer configuration for data generation and validation
  * - Run data-caterer
  * - Return back summarised results
- * @param configFile Base configuration file defining requirements for integration tests
+ * @param applicationConfig Base configuration file defining requirements for integration tests
  * @param instaInfraFolder  Folder where insta-infra is checked out
  * @param baseFolder Folder where execution files get saved
  * @returns {string}  Results of data-caterer
  */
-function runIntegrationTests(configFile, instaInfraFolder, baseFolder) {
+function runIntegrationTests(applicationConfig, instaInfraFolder, baseFolder) {
   if (instaInfraFolder.includes(' ')) {
     throw new Error(`Invalid insta-infra folder pathway=${instaInfraFolder}`)
   }
-  const parsedConfig = parseConfigFile(configFile)
-  const configFileDirectory = configFile.match(/(.*)[/\\]/)[1] || ''
+  const parsedConfig = parseConfigFile(applicationConfig)
+  const applicationConfigDirectory = applicationConfig.startsWith('/')
+    ? dirname(applicationConfig)
+    : `${process.cwd()}/${dirname(applicationConfig)}`
 
   const { serviceNames, envVars } = extractServiceNamesAndEnv(
     parsedConfig,
-    configFileDirectory
+    applicationConfigDirectory
   )
 
   if (serviceNames.length > 0) {
@@ -382,11 +464,13 @@ function runIntegrationTests(configFile, instaInfraFolder, baseFolder) {
     })
   }
 
-  const testResults = runTests(parsedConfig, configFileDirectory, baseFolder)
+  const testResults = runTests(
+    parsedConfig,
+    applicationConfigDirectory,
+    baseFolder
+  )
   core.info('Finished tests!')
   return testResults
 }
 
 module.exports = { runIntegrationTests }
-
-// runIntegrationTests('example/file.yaml', '../insta-infra')

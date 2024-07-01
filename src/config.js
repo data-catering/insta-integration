@@ -1,6 +1,6 @@
 const baseApplicationConf = () => `
 flags {
-    enableCount = false
+    enableCount = true
     enableCount = \${?ENABLE_COUNT}
     enableGenerateData = true
     enableGenerateData = \${?ENABLE_GENERATE_DATA}
@@ -87,19 +87,25 @@ runtime {
         "spark.sql.adaptive.enabled" = "true"
         "spark.sql.cbo.planStats.enabled" = "true"
         "spark.sql.legacy.allowUntypedScalaUDF" = "true"
+        "spark.sql.legacy.allowParameterlessCount" = "true",
         "spark.sql.statistics.histogram.enabled" = "true"
         "spark.sql.shuffle.partitions" = "10"
         "spark.sql.catalog.postgres" = ""
         "spark.sql.catalog.cassandra" = "com.datastax.spark.connector.datasource.CassandraCatalog"
+        "spark.sql.catalog.iceberg" = "org.apache.iceberg.spark.SparkCatalog",
+        "spark.sql.catalog.iceberg.type" = "hadoop",
         "spark.hadoop.fs.s3a.directory.marker.retention" = "keep"
         "spark.hadoop.fs.s3a.bucket.all.committer.magic.enabled" = "true"
+        "spark.hadoop.fs.hdfs.impl" = "org.apache.hadoop.hdfs.DistributedFileSystem",
+        "spark.hadoop.fs.file.impl" = "com.globalmentor.apache.hadoop.fs.BareLocalFileSystem",
+        "spark.sql.extensions" = "io.delta.sql.DeltaSparkSessionExtension,org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
     }
 }
 
 # connection type
 jdbc {
     postgres {
-        url = "jdbc:postgresql://localhost:5432/customer"
+        url = "jdbc:postgresql://postgres:5432/customer"
         url = \${?POSTGRES_URL}
         user = "postgres"
         user = \${?POSTGRES_USER}
@@ -108,7 +114,7 @@ jdbc {
         driver = "org.postgresql.Driver"
     }
     mysql {
-        url = "jdbc:mysql://localhost:3306/customer"
+        url = "jdbc:mysql://mysql:3306/customer"
         url = \${?MYSQL_URL}
         user = "root"
         user = \${?MYSQL_USER}
@@ -120,7 +126,7 @@ jdbc {
 
 org.apache.spark.sql.cassandra {
     cassandra {
-        spark.cassandra.connection.host = "localhost"
+        spark.cassandra.connection.host = "cassandra"
         spark.cassandra.connection.host = \${?CASSANDRA_HOST}
         spark.cassandra.connection.port = "9042"
         spark.cassandra.connection.port = \${?CASSANDRA_PORT}
@@ -142,7 +148,7 @@ jms {
         initialContextFactory = \${?SOLACE_INITIAL_CONTEXT_FACTORY}
         connectionFactory = "/jms/cf/default"
         connectionFactory = \${?SOLACE_CONNECTION_FACTORY}
-        url = "smf://localhost:55554"
+        url = "smf://solace:55554"
         url = \${?SOLACE_URL}
         user = "admin"
         user = \${?SOLACE_USER}
@@ -291,20 +297,36 @@ const baseValidation = () => {
   }
 }
 
+const notifyGenerationDoneTask = () => {
+  return {
+    name: 'data-gen-done-step',
+    options: { path: '/opt/app/shared/notify/data-gen-done' },
+    count: { records: 1 },
+    schema: { fields: [{ name: 'account_id' }] }
+  }
+}
+
 function createDataCatererDockerRunCommand(
   basicImage,
   version,
   sharedFolder,
   confFolder,
-  planName
+  planName,
+  envVars
 ) {
   const imageName = basicImage ? 'data-caterer-basic' : 'data-caterer'
-  return `docker run -p 4040:4040 \
+  const dockerEnvVars = []
+  for (const [key, value] of Object.entries(envVars)) {
+    dockerEnvVars.push(`-e ${key}=${value}`)
+  }
+  return `docker run -d -p 4040:4040 \
+  --network insta-infra_default \
   -v ${confFolder}:/opt/app/custom \
   -v ${sharedFolder}:/opt/app/shared \
   -e LOG_LEVEL=debug \
   -e APPLICATION_CONFIG_PATH=/opt/app/custom/application.conf \
   -e PLAN_FILE_PATH=/opt/app/custom/plan/${planName} \
+  ${dockerEnvVars.join(' ')} \
   datacatering/${imageName}:${version}`
 }
 
@@ -313,5 +335,6 @@ module.exports = {
   basePlan,
   baseValidation,
   baseApplicationConf,
+  notifyGenerationDoneTask,
   createDataCatererDockerRunCommand
 }

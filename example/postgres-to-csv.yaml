@@ -1,0 +1,58 @@
+services:
+  - name: postgres
+    data: my-data/sql
+run:
+  - command: ./my-app/run-postgres-extract-app.sh
+    test:
+      env:
+        POSTGRES_URL: jdbc:postgresql://postgres:5432/docker
+      relationship:
+        postgres_balance.account_number:
+          - postgres_transaction.account_number
+      generation:
+        postgres:
+          - name: postgres_transaction
+            options:
+              dbtable: account.transactions
+            count:
+              perColumn:
+                columnNames: [account_number]
+                count: 5
+            schema:
+              fields:
+                - name: account_number
+                - name: create_time
+                  type: timestamp
+                - name: transaction_id
+                - name: amount
+                  type: double
+          - name: postgres_balance
+            options:
+              dbtable: account.balances
+            schema:
+              fields:
+                - name: account_number
+                  generator:
+                    options:
+                      isUnique: true
+                - name: create_time
+                  type: timestamp
+                - name: account_status
+                - name: balance
+                  type: double
+      validation:
+        csv:
+          - options:
+              path: /opt/app/shared/generated/balances.csv
+              header: true
+            validations:
+              - expr: ISNOTNULL(account_number)
+              - aggType: count
+                aggExpr: count == 1000
+          - options:
+              path: /opt/app/shared/generated/transactions.csv
+              header: true
+            validations:
+              - expr: ISNOTNULL(account_number)
+              - aggType: count
+                aggExpr: count == 5000

@@ -1,5 +1,5 @@
 services: #what external services your app/job connects to
-  - name: kafka:v1.1.0 #optionally define a version
+  - name: kafka #optionally define a version
     env:
       KAFKA_TOPICS: account,transaction
   - name: postgres
@@ -28,13 +28,13 @@ run: #how to run your app/job, can run multiple, run in order
       validation:
         postgres:
           - options:
-              table: account.accounts
+              dbtable: account.accounts
             validations:
               - expr: ISNOTNULL(account_id)
               - aggType: count
                 expr: count == 1000
           - options:
-              table: account.transactions
+              dbtable: account.transactions
             validations:
               - expr: amount < 1000
 options: #additional options
