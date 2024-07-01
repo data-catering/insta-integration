@@ -7484,12 +7484,17 @@ function runDataCaterer(
     dataCatererEnv
   )
   // Check if network is created, create if it isn't
-  const network_details = execSync(
-    'docker network ls | grep insta-infra_default'
-  )
-  if (network_details.length === 0) {
-    core.debug('Creating docker network: insta-infra_default')
-    execSync('docker create network insta-infra_default')
+  try {
+    const network_details = execSync(
+      'docker network ls | grep insta-infra_default'
+    )
+    if (network_details.length === 0) {
+      core.debug('Creating docker network: insta-infra_default')
+      execSync('docker create network insta-infra_default')
+    }
+  } catch (error) {
+    core.error(error)
+    throw new Error(error)
   }
 
   core.debug(
