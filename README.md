@@ -109,6 +109,7 @@ options: #additional options
 ## Test Command
 
 ```shell
-CONFIGURATION_FILE=example/postgres-to-csv.yaml INSTA_INFRA_FOLDER=../insta-infra \
+CONFIGURATION_FILE=example/postgres-to-csv.yaml \
+  INSTA_INFRA_FOLDER=../insta-infra \
   BASE_FOLDER=/tmp/insta-integration node src/index.js
 ```
