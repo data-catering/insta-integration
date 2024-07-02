@@ -28,7 +28,7 @@ Automated integration tests for any application or job.
            uses: data-catering/insta-integration@v1
    ```
 
-2. Create YAML file `insta-integration.yaml`
+1. Create YAML file `insta-integration.yaml`
 
    1. For the latest supported services,
       [check here](https://github.com/data-catering/insta-infra?tab=readme-ov-file#services).
@@ -109,5 +109,6 @@ options: #additional options
 ## Test Command
 
 ```shell
-CONFIGURATION_FILE=example/postgres-to-csv.yaml INSTA_INFRA_FOLDER=../insta-infra BASE_FOLDER=/tmp/insta-integration node src/index.js
+CONFIGURATION_FILE=example/postgres-to-csv.yaml INSTA_INFRA_FOLDER=../insta-infra \
+  BASE_FOLDER=/tmp/insta-integration node src/index.js
 ```
