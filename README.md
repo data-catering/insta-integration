@@ -1,4 +1,4 @@
-# Data Caterer Action
+# insta-integration - Integration Testing
 
 [![GitHub Super-Linter](https://github.com/actions/javascript-action/actions/workflows/linter.yml/badge.svg)](https://github.com/super-linter/super-linter)
 ![CI](https://github.com/actions/javascript-action/actions/workflows/ci.yml/badge.svg)
@@ -21,14 +21,14 @@ Automated integration tests for any application or job.
          - *
    jobs:
      integration-test:
-       name: Integration Test via Data Caterer
+       name: Integration Test
        runs-on: ubuntu-latest
        steps:
          - name: Run integration tests
-           uses: data-catering/data-caterer-action@v1
+           uses: data-catering/insta-integration@v1
    ```
 
-2. Create YAML file `data-caterer.yaml`
+2. Create YAML file `insta-integration.yaml`
 
    1. For the latest supported services,
       [check here](https://github.com/data-catering/insta-infra?tab=readme-ov-file#services).
@@ -78,7 +78,7 @@ jobs:
 
     steps:
       - name: Run integration tests
-        uses: data-catering/data-caterer-action@v1
+        uses: data-catering/insta-integration@v1
 ```
 
 YAML config file:
@@ -109,5 +109,5 @@ options: #additional options
 ## Test Command
 
 ```shell
-CONFIGURATION_FILE=example/postgres-to-csv.yaml INSTA_INFRA_FOLDER=../insta-infra BASE_FOLDER=/tmp/data-caterer-action node src/index.js
+CONFIGURATION_FILE=example/postgres-to-csv.yaml INSTA_INFRA_FOLDER=../insta-infra BASE_FOLDER=/tmp/insta-integration node src/index.js
 ```

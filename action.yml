@@ -1,4 +1,4 @@
-name: 'Data Caterer - Integration Testing'
+name: 'insta-integration - Integration Testing'
 description: 'Automatically run integration tests for any application or job'
 author: 'Data Catering'
 branding:
@@ -8,14 +8,14 @@ branding:
 # Define your inputs here.
 inputs:
   configuration_file:
-    description: 'File path to Data Caterer configuration file'
-    default: 'data-caterer.yaml'
+    description: 'File path to configuration file'
+    default: 'insta-integration.yaml'
   insta_infra_folder:
-    description: 'Folder to insta-infra'
-    default: 'data-caterer-integration-test/insta-infra'
+    description: 'Folder path to insta-infra'
+    default: 'integration-test/insta-infra'
   base_folder:
-    description: 'Folder to use for execution files'
-    default: '/tmp/data-caterer'
+    description: 'Folder path to use for execution files'
+    default: '/tmp/insta-integration'
 
 # Define your outputs here.
 outputs:

@@ -1,21 +1,23 @@
 {
-  "name": "data-caterer-action",
-  "description": "Data Caterer GitHub Action",
+  "name": "insta-integration",
+  "description": "insta-integration GitHub Action",
   "version": "0.1.0",
   "author": "Data Catering",
   "private": true,
-  "homepage": "https://github.com/data-catering/data-caterer-action",
+  "homepage": "https://github.com/data-catering/insta-integration",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/data-catering/data-caterer-action.git"
+    "url": "git+https://github.com/data-catering/insta-integration.git"
   },
   "bugs": {
-    "url": "https://github.com/data-catering/data-caterer-action/issues"
+    "url": "https://github.com/data-catering/insta-integration/issues"
   },
   "keywords": [
     "GitHub",
     "Actions",
-    "JavaScript"
+    "JavaScript",
+    "Testing",
+    "Integration"
   ],
   "exports": {
     ".": "./dist/index.js"

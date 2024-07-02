@@ -7157,9 +7157,6 @@ function createDataCatererDockerRunCommand(
   }
   const uid = process.getuid()
   const gid = process.getgid()
-  const setUser = `addgroup -G github && adduser -G github -u ${uid} github`
-  const setUserInPasswd = `echo "${uid}:x:${uid}:${gid}:github:/opt/app:/sbin/nologin" >> /etc/passwd`
-  ///bin/bash -c '${setUserInPasswd} && ${setUser} && cat /etc/passwd && bash /opt/app/run-data-caterer.sh'`
   return `docker run -d -p 4040:4040 \
   --network insta-infra_default \
   --name data-caterer \
@@ -7184,7 +7181,24 @@ module.exports = {
 
 /***/ }),
 
-/***/ 401:
+/***/ 4351:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+/**
+ * The entrypoint for the action.
+ */
+const { run } = __nccwpck_require__(1713)
+
+function script() {
+  run()
+}
+
+module.exports = { script }
+
+
+/***/ }),
+
+/***/ 8370:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 const { execSync, exec } = __nccwpck_require__(2081)
@@ -7695,28 +7709,11 @@ module.exports = { runIntegrationTests }
 
 /***/ }),
 
-/***/ 4351:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-/**
- * The entrypoint for the action.
- */
-const { run } = __nccwpck_require__(1713)
-
-function script() {
-  run()
-}
-
-module.exports = { script }
-
-
-/***/ }),
-
 /***/ 1713:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 const core = __nccwpck_require__(2186)
-const { runIntegrationTests } = __nccwpck_require__(401)
+const { runIntegrationTests } = __nccwpck_require__(8370)
 
 /**
  * The main function for the action.

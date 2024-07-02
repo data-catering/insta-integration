@@ -1,5 +1,5 @@
 const core = require('@actions/core')
-const { runIntegrationTests } = require('./data-caterer')
+const { runIntegrationTests } = require('./insta-integration')
 
 /**
  * The main function for the action.
