@@ -8,13 +8,13 @@ branding:
 # Define your inputs here.
 inputs:
   configuration_file:
-    description: 'File path to configuration file'
+    description: 'File path to configuration file.'
     default: 'insta-integration.yaml'
   insta_infra_folder:
-    description: 'Folder path to insta-infra'
+    description: 'Folder path to insta-infra.'
     default: 'integration-test/insta-infra'
   base_folder:
-    description: 'Folder path to use for execution files'
+    description: 'Folder path to use for execution files.'
     default: '/tmp/insta-integration'
 
 # Define your outputs here.

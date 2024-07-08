@@ -43,84 +43,11 @@ It is the closest you get to simulating production. This involves:
            uses: data-catering/insta-integration@v1
    ```
 
-1. Create YAML file `insta-integration.yaml`
+1. Create YAML file `insta-integration.yaml` to define your integration tests
 
-   1. For the latest supported services,
-      [check here](https://github.com/data-catering/insta-infra?tab=readme-ov-file#services).
-      Supported services include: activemq, airflow, cassandra, clickhouse,
-      cockroachdb, dagster, data-caterer, debezium, doris, druid, duckdb,
-      elasticsearch, flight-sql, flink, httpbin, kafka, keycloak, mage-ai,
-      mariadb, marquez, minio, mongodb, mysql, neo4j, pinot, postgres, prefect,
-      presto, rabbitmq, solace, spanner, sqlite, temporal, trino, unitycatalog,
-      zookeeper
+   1. [Examples can be found here.](example)
 
-   ```yaml
-   services: #what external services your app/job connects to
-     - name: postgres
-       data: my-data/sql #define SQL DDL scripts needed to create initial schemas/tables
-   run: #how to run your app/job, can run multiple, run in order
-     - command: ./my-app/run-postgres-extract-app.sh
-       env:
-         APP_VERSION: 1.3.1 #additional env vars to pass to your app/job
-       test:
-         env:
-           POSTGRES_URL: jdbc:postgresql://postgres:5432/docker #additional env vars to pass to data generation/validation
-         relationship: #define relationships where data needs to match across data sources
-           postgres_balance.account_number: #transaction account_number should also exist in balance
-             - postgres_transaction.account_number
-         generation:
-           postgres: #match with service from above or can be another data source (i.e. csv, parquet)
-             - name: postgres_transaction #name of generation task, used to define relationships
-               options: #additional connection options
-                 dbtable: account.transactions
-               count: #how many records to generate, default to 1000
-                 perColumn:
-                   columnNames: [account_number]
-                   count: 5 #per unique account_number, generate 5 records
-               schema:
-                 fields:
-                   - name: account_number #default to data type string
-                   - name: create_time
-                     type: timestamp
-                   - name: transaction_id
-                   - name: amount
-                     type: double
-             - name: postgres_balance
-               options:
-                 dbtable: account.balances
-               schema:
-                 fields:
-                   - name: account_number
-                     generator:
-                       options: #additional generator options
-                         isUnique: true #generate unique values
-                   - name: create_time
-                     type: timestamp
-                   - name: account_status
-                   - name: balance
-                     type: double
-         validation:
-           csv: #data source to run data validations on
-             - options:
-                 path: /opt/app/shared/generated/balances.csv
-                 header: true
-               validations: #list of validation rules to run
-                 - expr: ISNOTNULL(account_number)
-                 - aggType: count
-                   aggExpr: count == 1000
-             - options:
-                 path: /opt/app/shared/generated/transactions.csv
-                 header: true
-               validations:
-                 - expr: ISNOTNULL(account_number)
-                 - aggType: count
-                   aggExpr: count == 5000
-                 - groupByCols: [account_number]
-                   aggType: count
-                   aggExpr: count == 5
-   ```
-
-1. Push your code and the GitHub Action should start
+1. Push your code and the GitHub Action will run
 
 ### Generation and Validation
 
@@ -131,7 +58,68 @@ available.
 - [Data Generation](https://data.catering/setup/generator/data-generator/)
 - [Data Validation](https://data.catering/setup/validation/)
 
-#### JSON Schema for insta-integration.yaml
+### GitHub Action Options
+
+#### Input
+
+Optional configurations to alter the files and folders used by the GitHub Action
+can be found below.
+
+| Name               | Description                                                                                  | Default                      |
+| ------------------ | -------------------------------------------------------------------------------------------- | ---------------------------- |
+| configuration_file | File path to configuration file                                                              | insta-integration.yaml       |
+| insta_infra_folder | Folder path to insta-infra ([this repository](https://github.com/data-catering/insta-infra)) | integration-test/insta-infra |
+| base_folder        | Folder path to use for execution files                                                       | /tmp/insta-integration       |
+
+To use these configurations, alter your
+`.github/workflows/integration-test.yaml`.
+
+```yaml
+name: Integration Test
+on:
+  push:
+    branches:
+      - *
+jobs:
+  integration-test:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run integration tests
+        uses: data-catering/insta-integration@v1
+        with:
+          configuration_file: my/custom/folder/insta-integration.yaml
+```
+
+#### Output
+
+If you want to use the output of the GitHub Action, the following attributes are
+available:
+
+| Name                    | Description                                                 | Default |
+| ----------------------- | ----------------------------------------------------------- | ------- |
+| num_records_generated   | Total number of records generated.                          | 0       |
+| num_success_validations | Total number of successful validations.                     | 0       |
+| num_failed_validations  | Total number of failed validations.                         | 0       |
+| num_validations         | Total number of validations.                                | 0       |
+| validation_success_rate | Success rate of validations (i.e. 0.75 = 75% success rate). | 0       |
+
+For example, you can print out the results like below:
+
+```yaml
+- name: Run integration tests
+  uses: data-catering/insta-integration@v1
+- name: Print Output
+  id: output
+  run: |
+    echo "Records generated:         ${{ steps.test-action.outputs.num_records_generated }}"
+    echo "Successful validations:    ${{ steps.test-action.outputs.num_success_validations }}"
+    echo "Failed validations:        ${{ steps.test-action.outputs.num_failed_validations }}"
+    echo "Number of validations:     ${{ steps.test-action.outputs.num_validations }}"
+    echo "Validation success rate:   ${{ steps.test-action.outputs.validation_success_rate }}"
+```
+
+### JSON Schema for insta-integration.yaml
 
 [A JSON Schema has been created](schema/insta-integration-config-latest.json) to
 help guide users on what is possible in the `insta-integration.yaml`. The links
