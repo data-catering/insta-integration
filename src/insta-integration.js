@@ -403,12 +403,15 @@ async function waitForDataGeneration(sharedFolder) {
 async function runTests(parsedConfig, configFileDirectory, baseFolder) {
   const configurationFolder = `${baseFolder}/conf`
   const sharedFolder = `${baseFolder}/shared`
-  const testResultsFile = `${configurationFolder}/report/results.json`
+  const testResultsFolder = `${configurationFolder}/report`
+  const testResultsFile = `${testResultsFolder}/results.json`
   const testResults = []
   core.debug(`Using data caterer configuration folder: ${configurationFolder}`)
   core.info(`Using shared folder: ${sharedFolder}`)
+  core.info(`Using test results folder: ${testResultsFolder}`)
   fs.mkdirSync(configurationFolder, { recursive: true })
   fs.mkdirSync(sharedFolder, { recursive: true })
+  fs.mkdirSync(testResultsFolder, { recursive: true })
 
   if (parsedConfig.run) {
     for (const [i, runConf] of parsedConfig.run.entries()) {

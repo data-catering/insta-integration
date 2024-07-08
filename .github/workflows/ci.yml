@@ -62,4 +62,9 @@ jobs:
 
       - name: Print Output
         id: output
-        run: echo "${{ steps.test-action.outputs.results }}"
+        run: |
+          echo "Records generated:         ${{ steps.test-action.outputs.num_records_generated }}"
+          echo "Successful validations:    ${{ steps.test-action.outputs.num_success_validations }}"
+          echo "Failed validations:        ${{ steps.test-action.outputs.num_failed_validations }}"
+          echo "Number of validations:     ${{ steps.test-action.outputs.num_validations }}"
+          echo "Validation success rate:   ${{ steps.test-action.outputs.validation_success_rate }}"

@@ -1,11 +1,9 @@
-### Building and running your application
+# Building and running your application
 
 When you're ready, start your application by running:
 `docker compose up --build`.
 
-Your application will be available at http://localhost:3000.
-
-### Deploying your application to the cloud
+## Deploying your application to the cloud
 
 First, build your image, e.g.: `docker build -t myapp .`. If your cloud uses a
 different CPU architecture than your development machine (e.g., you are on a Mac
@@ -18,6 +16,6 @@ Consult Docker's
 [getting started](https://docs.docker.com/go/get-started-sharing/) docs for more
 detail on building and pushing.
 
-### References
+## References
 
 - [Docker's Node.js guide](https://docs.docker.com/language/nodejs/)

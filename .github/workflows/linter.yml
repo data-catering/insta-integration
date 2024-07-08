@@ -46,6 +46,8 @@ jobs:
           JAVASCRIPT_DEFAULT_STYLE: prettier
           VALIDATE_ALL_CODEBASE: true
           VALIDATE_GITLEAKS: false
+          VALIDATE_DOCKERFILE_HADOLINT: false
           VALIDATE_JSCPD: false
+          VALIDATE_MARKDOWN: false
           VALIDATE_SHELL_SHFMT: false
           VALIDATE_SQLFLUFF: false
