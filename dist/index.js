@@ -7058,7 +7058,7 @@ datastax-java-driver.advanced.metadata.schema.refreshed-keyspaces = [ "/.*/" ]
 
 /**
  * Plan format used by data-caterer
- * @type {function(): {name: string, description: string, sinkOptions: {foreignKeys: []}, tasks: []}}
+ * @type {function(): {name: string, description: string, sinkOptions: {foreignKeys: []}, tasks: [], validations: []}}
  */
 const basePlan = () => {
   return {
@@ -7198,7 +7198,7 @@ const {
 } = __nccwpck_require__(4570)
 const { dirname, basename } = __nccwpck_require__(9411)
 
-const dataCatererVersion = '0.11.7'
+const dataCatererVersion = '0.11.8'
 
 /**
  * Check if service names are supported by insta-infra

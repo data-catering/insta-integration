@@ -12,7 +12,7 @@ const {
 } = require('./config')
 const { dirname, basename } = require('node:path')
 
-const dataCatererVersion = '0.11.7'
+const dataCatererVersion = '0.11.8'
 
 /**
  * Check if service names are supported by insta-infra

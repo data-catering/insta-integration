@@ -223,7 +223,7 @@ datastax-java-driver.advanced.metadata.schema.refreshed-keyspaces = [ "/.*/" ]
 
 /**
  * Plan format used by data-caterer
- * @type {function(): {name: string, description: string, sinkOptions: {foreignKeys: []}, tasks: []}}
+ * @type {function(): {name: string, description: string, sinkOptions: {foreignKeys: []}, tasks: [], validations: []}}
  */
 const basePlan = () => {
   return {
