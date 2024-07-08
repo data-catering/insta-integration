@@ -8,10 +8,10 @@ run:
   - command: ./my-app/run-app.sh
     test:
       generation:
-        - service: kafka
-          options:
-            topic: account
+        kafka:
+          - options:
+              topic: account
       validation:
-        - service: postgres
-          options:
-            dbtable: account.accounts
+        postgres:
+          - options:
+              dbtable: account.accounts

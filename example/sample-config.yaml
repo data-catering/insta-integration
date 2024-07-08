@@ -6,14 +6,9 @@ services: #what external services your app/job connects to
     data: my-data/sql
 run: #how to run your app/job, can run multiple, run in order
   - command: ./my-app/run-app.sh
-    #    command: java -jar build/target/my-app.jar
-    #    command: docker run -p 8080:8080 my-image:${APP_VERSION:-1.3.1}  #allow for env variable substitution anywhere in the YAML
     env:
-      - APP_VERSION=1.3.1
+      APP_VERSION: 1.3.1
     test: #using data-caterer, generate and validate data
-      #docker:
-      #image: data-caterer-example:0.10.10  #can use packaged docker image
-      #env: []  #define additional env vars for data-caterer image
       relationship:
         kafka_accounts.account_id:
           - kafka_transactions.account_id
@@ -32,11 +27,8 @@ run: #how to run your app/job, can run multiple, run in order
             validations:
               - expr: ISNOTNULL(account_id)
               - aggType: count
-                expr: count == 1000
+                aggExpr: count == 1000
           - options:
               dbtable: account.transactions
             validations:
               - expr: amount < 1000
-options: #additional options
-  keepAlive: true #could allow services to be kept alive after running
-  deleteData: false #retain data for further investigation/debugging/testing

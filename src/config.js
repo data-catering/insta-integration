@@ -1,4 +1,9 @@
 const process = require('process')
+
+/**
+ * Application configuration file used by data-caterer
+ * @returns {string}
+ */
 const baseApplicationConf = () => `
 flags {
     enableCount = true
@@ -217,24 +222,7 @@ datastax-java-driver.advanced.metadata.schema.refreshed-keyspaces = [ "/.*/" ]
 `
 
 /**
- * name: "account_create_plan"
- * description: "Create account data in JSON"
- * tasks:
- *   - name: "json_account_jms"
- *     dataSourceName: "solace"
- *     enabled: false
- *   - name: "json_account_file"
- *     dataSourceName: "json"
- *     enabled: true
- *
- * sinkOptions:
- *   foreignKeys:
- *     - - "solace.jms_account.account_id"
- *       - - "json.file_account.account_id"
- *       - []
- *
- * validations:
- *   - "account_checks"
+ * Plan format used by data-caterer
  * @type {function(): {name: string, description: string, sinkOptions: {foreignKeys: []}, tasks: []}}
  */
 const basePlan = () => {
@@ -249,25 +237,7 @@ const basePlan = () => {
 }
 
 /**
- * name: "csv_transaction_file"
- * steps:
- *   - name: "transactions"
- *     type: "csv"
- *     options: { }
- *     count:
- *       records: 1000
- *       perColumn:
- *         columnNames:
- *           - "account_id"
- *           - "name"
- *         generator:
- *           type: "random"
- *           options:
- *             max: 10
- *             min: 1
- *     schema:
- *       fields:
- *         - name: "account_id"
+ * Task format used by data-caterer
  * @type {function(): {name: string, steps: []}}
  */
 const baseTask = () => {
@@ -278,16 +248,7 @@ const baseTask = () => {
 }
 
 /**
- * name: "account_checks"
- * description: "Check account related fields have gone through system correctly"
- * dataSources:
- *   json:
- *     options:
- *       path: "app/src/test/resources/sample/json/txn-gen"
- *     validations:
- *       - whereExpr: "amount < 100"
- *       - whereExpr: "year == 2021"
- *         errorThreshold: 0.1
+ * Validation format used by data-caterer
  * @type {(function(): *)|*}
  */
 const baseValidation = () => {
@@ -298,6 +259,10 @@ const baseValidation = () => {
   }
 }
 
+/**
+ * Extra step appended to notify when data-caterer has finished generating data
+ * @returns {{schema: {fields: [{name: string}]}, name: string, options: {path: string}, count: {records: number}}}
+ */
 const notifyGenerationDoneTask = () => {
   return {
     name: 'data-gen-done-step',
@@ -307,6 +272,16 @@ const notifyGenerationDoneTask = () => {
   }
 }
 
+/**
+ * Docker run command for data-caterer
+ * @param basicImage  Use basic image or not
+ * @param version Version of data-caterer Docker image
+ * @param sharedFolder  Folder to volume mount for shared files between host and data-caterer
+ * @param confFolder  Configuration folder containing plan, tasks and validation files
+ * @param planName  Name of plan to run
+ * @param envVars Additional environment variables for data-caterer
+ * @returns {string}
+ */
 function createDataCatererDockerRunCommand(
   basicImage,
   version,
@@ -322,10 +297,14 @@ function createDataCatererDockerRunCommand(
   }
   const uid = process.getuid()
   const gid = process.getgid()
+  let user = ``
+  //to make it work for GitHub Actions
+  if (uid === 1001) {
+    user = `--user ${uid}:${gid}`
+  }
   return `docker run -d -p 4040:4040 \
   --network insta-infra_default \
-  --name data-caterer \
-  --user ${uid}:${gid} \
+  --name data-caterer ${user} \
   -v ${confFolder}:/opt/app/custom \
   -v ${sharedFolder}:/opt/app/shared \
   -e APPLICATION_CONFIG_PATH=/opt/app/custom/application.conf \

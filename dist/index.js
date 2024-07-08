@@ -6834,6 +6834,11 @@ exports["default"] = _default;
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 const process = __nccwpck_require__(7282)
+
+/**
+ * Application configuration file used by data-caterer
+ * @returns {string}
+ */
 const baseApplicationConf = () => `
 flags {
     enableCount = true
@@ -7052,24 +7057,7 @@ datastax-java-driver.advanced.metadata.schema.refreshed-keyspaces = [ "/.*/" ]
 `
 
 /**
- * name: "account_create_plan"
- * description: "Create account data in JSON"
- * tasks:
- *   - name: "json_account_jms"
- *     dataSourceName: "solace"
- *     enabled: false
- *   - name: "json_account_file"
- *     dataSourceName: "json"
- *     enabled: true
- *
- * sinkOptions:
- *   foreignKeys:
- *     - - "solace.jms_account.account_id"
- *       - - "json.file_account.account_id"
- *       - []
- *
- * validations:
- *   - "account_checks"
+ * Plan format used by data-caterer
  * @type {function(): {name: string, description: string, sinkOptions: {foreignKeys: []}, tasks: []}}
  */
 const basePlan = () => {
@@ -7084,25 +7072,7 @@ const basePlan = () => {
 }
 
 /**
- * name: "csv_transaction_file"
- * steps:
- *   - name: "transactions"
- *     type: "csv"
- *     options: { }
- *     count:
- *       records: 1000
- *       perColumn:
- *         columnNames:
- *           - "account_id"
- *           - "name"
- *         generator:
- *           type: "random"
- *           options:
- *             max: 10
- *             min: 1
- *     schema:
- *       fields:
- *         - name: "account_id"
+ * Task format used by data-caterer
  * @type {function(): {name: string, steps: []}}
  */
 const baseTask = () => {
@@ -7113,16 +7083,7 @@ const baseTask = () => {
 }
 
 /**
- * name: "account_checks"
- * description: "Check account related fields have gone through system correctly"
- * dataSources:
- *   json:
- *     options:
- *       path: "app/src/test/resources/sample/json/txn-gen"
- *     validations:
- *       - whereExpr: "amount < 100"
- *       - whereExpr: "year == 2021"
- *         errorThreshold: 0.1
+ * Validation format used by data-caterer
  * @type {(function(): *)|*}
  */
 const baseValidation = () => {
@@ -7133,6 +7094,10 @@ const baseValidation = () => {
   }
 }
 
+/**
+ * Extra step appended to notify when data-caterer has finished generating data
+ * @returns {{schema: {fields: [{name: string}]}, name: string, options: {path: string}, count: {records: number}}}
+ */
 const notifyGenerationDoneTask = () => {
   return {
     name: 'data-gen-done-step',
@@ -7142,6 +7107,16 @@ const notifyGenerationDoneTask = () => {
   }
 }
 
+/**
+ * Docker run command for data-caterer
+ * @param basicImage  Use basic image or not
+ * @param version Version of data-caterer Docker image
+ * @param sharedFolder  Folder to volume mount for shared files between host and data-caterer
+ * @param confFolder  Configuration folder containing plan, tasks and validation files
+ * @param planName  Name of plan to run
+ * @param envVars Additional environment variables for data-caterer
+ * @returns {string}
+ */
 function createDataCatererDockerRunCommand(
   basicImage,
   version,
@@ -7157,10 +7132,14 @@ function createDataCatererDockerRunCommand(
   }
   const uid = process.getuid()
   const gid = process.getgid()
+  let user = ``
+  //to make it work for GitHub Actions
+  if (uid === 1001) {
+    user = `--user ${uid}:${gid}`
+  }
   return `docker run -d -p 4040:4040 \
   --network insta-infra_default \
-  --name data-caterer \
-  --user ${uid}:${gid} \
+  --name data-caterer ${user} \
   -v ${confFolder}:/opt/app/custom \
   -v ${sharedFolder}:/opt/app/shared \
   -e APPLICATION_CONFIG_PATH=/opt/app/custom/application.conf \
@@ -7189,11 +7168,14 @@ module.exports = {
  */
 const { run } = __nccwpck_require__(1713)
 
-function script() {
-  run()
+async function script() {
+  await run()
 }
 
 module.exports = { script }
+module.exports.init = async function () {
+  await script()
+}
 
 
 /***/ }),
@@ -7215,7 +7197,7 @@ const {
 } = __nccwpck_require__(4570)
 const { dirname, basename } = __nccwpck_require__(9411)
 
-const dataCatererVersion = '0.11.2'
+const dataCatererVersion = '0.11.7'
 
 /**
  * Check if service names are supported by insta-infra
@@ -7474,6 +7456,15 @@ function createDockerNetwork() {
   }
 }
 
+function cleanDataCatererContainer() {
+  try {
+    core.debug('Attempting to remove data-caterer Docker container')
+    execSync('docker rm data-caterer')
+  } catch (error) {
+    core.warning(error)
+  }
+}
+
 function runDataCaterer(
   testConfig,
   appIndex,
@@ -7519,15 +7510,18 @@ function runDataCaterer(
     dataCatererEnv
   )
 
-  core.info(
+  cleanDataCatererContainer()
+  core.debug(
     `Running docker command for data-caterer, command=${dockerRunCommand}`
   )
   execSync(dockerRunCommand)
-  // core.debug(`Exit code: ${runDocker}`)
 }
 
-function cleanAppDoneFiles(parsedConfig, sharedFolder) {
+async function cleanAppDoneFiles(parsedConfig, sharedFolder) {
   // Clean up 'app-*-done' files in shared directory
+  await new Promise(resolve => {
+    setTimeout(resolve, 4000)
+  })
   core.debug('Removing files relating to notifying the application is done')
   for (const [i] of parsedConfig.run.entries()) {
     try {
@@ -7579,11 +7573,10 @@ async function waitForDataGeneration(sharedFolder) {
   // created a csv file to notify us that it has completed generating data
   const notifyFilePath = `${sharedFolder}/notify/data-gen-done`
   fs.mkdirSync(`${sharedFolder}/notify`, { recursive: true })
-  fs.writeFileSync(`${sharedFolder}/notify/empty.txt`, '')
   await checkExistsWithTimeout(notifyFilePath)
   core.debug('Removing data generation done folder')
   try {
-    fs.rmSync(`${sharedFolder}/notify/data-gen-done`, {
+    fs.rmSync(notifyFilePath, {
       recursive: true,
       force: true
     })
@@ -7593,9 +7586,10 @@ async function waitForDataGeneration(sharedFolder) {
 }
 
 async function runTests(parsedConfig, configFileDirectory, baseFolder) {
-  let testResult = ''
   const configurationFolder = `${baseFolder}/conf`
   const sharedFolder = `${baseFolder}/shared`
+  const testResultsFile = `${configurationFolder}/report/results.json`
+  const testResults = []
   core.debug(`Using data caterer configuration folder: ${configurationFolder}`)
   core.info(`Using shared folder: ${sharedFolder}`)
   fs.mkdirSync(configurationFolder, { recursive: true })
@@ -7623,15 +7617,11 @@ async function runTests(parsedConfig, configFileDirectory, baseFolder) {
           runConf.test) ||
         !runConf.generateFirst
       ) {
-        core.info('Running data caterer')
-        testResult = runDataCaterer(
-          runConf.test,
-          i,
-          configurationFolder,
-          sharedFolder
-        )
+        core.info('Running data caterer for data generation and validation')
+        runDataCaterer(runConf.test, i, configurationFolder, sharedFolder)
         core.info('Waiting for data generation to be completed')
         await waitForDataGeneration(sharedFolder, i)
+
         core.info('Running application/job')
         execSync(runConf.command, { cwd: configFileDirectory })
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
@@ -7639,17 +7629,54 @@ async function runTests(parsedConfig, configFileDirectory, baseFolder) {
         core.info('Running application/job')
         execSync(runConf.command, { cwd: configFileDirectory })
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
-        core.info('Running data caterer')
-        testResult = runDataCaterer(
-          runConf.test,
-          i,
-          configurationFolder,
-          sharedFolder
-        )
+
+        core.info('Running data caterer for data generation and validation')
+        runDataCaterer(runConf.test, i, configurationFolder, sharedFolder)
       }
     }
-    cleanAppDoneFiles(parsedConfig, sharedFolder)
+    // Wait for generation and validation results file
+    core.info('Waiting for data validation results')
+    await checkExistsWithTimeout(testResultsFile)
+    testResults.push(JSON.parse(fs.readFileSync(testResultsFile, 'utf8')))
+    await cleanAppDoneFiles(parsedConfig, sharedFolder)
   }
+  return testResults
+}
+
+function showTestResultSummary(testResults) {
+  let numRecordsGenerated = -1 //Start at -1 since 1 record is always generated
+  let numSuccessValidations = 0
+  let numFailedValidations = 0
+  let numValidations = 0
+
+  for (const testResult of testResults) {
+    if (testResult.generation) {
+      for (const generation of testResult.generation) {
+        numRecordsGenerated += generation.numRecords
+      }
+    }
+
+    if (testResult.validation) {
+      for (const validation of testResult.validation) {
+        numSuccessValidations += validation.numSuccess
+        numValidations += validation.numValidations
+        numFailedValidations +=
+          validation.numValidations - validation.numSuccess
+      }
+    }
+  }
+  const validationSuccessRate = numSuccessValidations / numValidations
+  core.info('Test result summary')
+  core.info(`Number of records generation: ${numRecordsGenerated}`)
+  core.info(`Number of successful validations: ${numSuccessValidations}`)
+  core.info(`Number of failed validations: ${numFailedValidations}`)
+  core.info(`Number of validations: ${numValidations}`)
+  core.info(`Validation success rate: ${validationSuccessRate * 100}%`)
+  core.setOutput('num_records_generated', numRecordsGenerated)
+  core.setOutput('num_success_validations', numSuccessValidations)
+  core.setOutput('num_failed_validations', numFailedValidations)
+  core.setOutput('num_validations', numValidations)
+  core.setOutput('validation_success_rate', validationSuccessRate)
 }
 
 /**
@@ -7700,7 +7727,10 @@ async function runIntegrationTests(
     applicationConfigDirectory,
     baseFolder
   )
+
   core.info('Finished tests!')
+  showTestResultSummary(testResults)
+
   return testResults
 }
 
@@ -7715,37 +7745,44 @@ module.exports = { runIntegrationTests }
 const core = __nccwpck_require__(2186)
 const { runIntegrationTests } = __nccwpck_require__(8370)
 
+function getConfiguration() {
+  let applicationConfig = process.env.CONFIGURATION_FILE
+  let instaInfraFolder = process.env.INSTA_INFRA_FOLDER
+  let baseFolder = process.env.BASE_FOLDER
+
+  console.log('Checking if GitHub Action properties defined')
+  if (core) {
+    applicationConfig =
+      core.getInput('configuration_file', {}).length > 0
+        ? core.getInput('configuration_file', {})
+        : applicationConfig
+    instaInfraFolder =
+      core.getInput('insta_infra_folder', {}).length > 0
+        ? core.getInput('insta_infra_folder', {})
+        : instaInfraFolder
+    baseFolder =
+      core.getInput('base_folder', {}).length > 0
+        ? core.getInput('base_folder', {}).replace('/./', '')
+        : baseFolder.replace('/./', '')
+  }
+
+  return { applicationConfig, instaInfraFolder, baseFolder }
+}
+
 /**
  * The main function for the action.
  * @returns {Promise<void>} Resolves when the action is complete.
  */
 async function run() {
   try {
-    const applicationConfig =
-      core.getInput('configuration_file', {}).length > 0
-        ? core.getInput('configuration_file', {})
-        : process.env.CONFIGURATION_FILE
-    const instaInfraFolder =
-      core.getInput('insta_infra_folder', {}).length > 0
-        ? core.getInput('insta_infra_folder', {})
-        : process.env.INSTA_INFRA_FOLDER
-    const baseFolder =
-      core.getInput('base_folder', {}).length > 0
-        ? core.getInput('base_folder', {}).replace('/./', '')
-        : process.env.BASE_FOLDER.replace('/./', '')
+    const { applicationConfig, instaInfraFolder, baseFolder } =
+      getConfiguration()
 
     // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
     core.info(`Using config file: ${applicationConfig}`)
     core.info(`Using insta-infra folder: ${instaInfraFolder}`)
     core.info(`Using base folder: ${baseFolder}`)
-    const result = runIntegrationTests(
-      applicationConfig,
-      instaInfraFolder,
-      baseFolder
-    )
-
-    // Set outputs for other workflow steps to use
-    core.setOutput('results', result)
+    runIntegrationTests(applicationConfig, instaInfraFolder, baseFolder)
   } catch (error) {
     // Fail the workflow run if an error occurs
     core.setFailed(error.message)

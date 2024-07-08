@@ -1,0 +1,763 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "title": "insta-integration configuration schema",
+  "description": "Configuration to run integration tests with insta-integration",
+  "type": "object",
+  "properties": {
+    "services": {
+      "type": "array",
+      "description": "External services required to run integration tests",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the service. Optionally, define the version of the service to run using pattern '<service>:<version>'.",
+            "examples": ["kafka", "mysql", "postgres", "postgres:16.3"]
+          },
+          "data": {
+            "type": "string",
+            "description": "Folder path or link to startup files. For example, 'postgres/sql' folder with schema and table creation SQL files. Refer to insta-infra for possible startup files"
+          },
+          "env": {
+            "type": "object",
+            "description": "Environment variables for the service.",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": ["name"]
+      }
+    },
+    "run": {
+      "type": "array",
+      "description": "Applications/jobs to run as part of the integration tests. Run in order.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string",
+            "description": "Bash command to run your application/job."
+          },
+          "env": {
+            "type": "object",
+            "description": "Environment variables for your application/job.",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "test": {
+            "type": "object",
+            "description": "Data Caterer configuration for data generation and validation",
+            "properties": {
+              "env": {
+                "type": "object",
+                "description": "Environment variables for data-caterer Docker image. Check 'src/config.js' baseApplicationConf for potential environment variables to override.",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "generation": {
+                "type": "object",
+                "description": "Define data sources along with schemas for data generation.",
+                "propertyNames": {
+                  "enum": [
+                    "cassandra",
+                    "postgres",
+                    "mysql",
+                    "csv",
+                    "delta",
+                    "iceberg",
+                    "json",
+                    "orc",
+                    "parquet",
+                    "http",
+                    "kafka",
+                    "solace"
+                  ]
+                },
+                "additionalProperties": {
+                  "type": "array",
+                  "description": "Array of data generation tasks with the data source name as the key.",
+                  "items": {
+                    "type": "object",
+                    "description": "Data generation task details with information about data source, number of records and schema.",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "options": {
+                        "type": "object",
+                        "description": "Data source configuration for data generation."
+                      },
+                      "count": {
+                        "type": "object",
+                        "description": "Define the number of records to generate.",
+                        "properties": {
+                          "records": {
+                            "type": "integer",
+                            "description": "Total number of records to generate."
+                          },
+                          "generator": {
+                            "description": "Random number of records.",
+                            "$ref": "#/$defs/CountGenerator"
+                          },
+                          "perColumn": {
+                            "type": "object",
+                            "description": "Generate records per unique set of column values. For example, generate 5 transactions for each 'account_number'.",
+                            "properties": {
+                              "columnNames": {
+                                "type": "array",
+                                "description": "Array of column names to generate records for each set of unique values.",
+                                "items": {
+                                  "type": "string",
+                                  "description": "Column name found within schema fields."
+                                }
+                              },
+                              "count": {
+                                "type": "integer",
+                                "description": "Static number of records per unique set of column values."
+                              },
+                              "generator": {
+                                "description": "Random number of records per unique set of column values.",
+                                "$ref": "#/$defs/CountGenerator"
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "schema": {
+                        "type": "object",
+                        "properties": {
+                          "fields": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "description": "Name of the field."
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "description": "Data type of the field.",
+                                  "enum": [
+                                    "string",
+                                    "integer",
+                                    "long",
+                                    "double",
+                                    "short",
+                                    "decimal",
+                                    "float",
+                                    "date",
+                                    "timestamp",
+                                    "boolean",
+                                    "binary",
+                                    "byte",
+                                    "array",
+                                    "struct"
+                                  ]
+                                },
+                                "generator": {
+                                  "type": "object",
+                                  "properties": {
+                                    "options": {
+                                      "type": "object",
+                                      "additionalProperties": {
+                                        "type": [
+                                          "string",
+                                          "boolean",
+                                          "integer",
+                                          "number"
+                                        ]
+                                      }
+                                    },
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "additionalProperties": false
+                              },
+                              "allOf": [
+                                {
+                                  "if": {
+                                    "properties": {
+                                      "type": {
+                                        "const": "string"
+                                      }
+                                    }
+                                  },
+                                  "then": {
+                                    "properties": {
+                                      "generator": {
+                                        "properties": {
+                                          "options": {
+                                            "propertyNames": {
+                                              "enum": [
+                                                "enableEdgeCase",
+                                                "edgeCaseProb",
+                                                "isUnique",
+                                                "seed",
+                                                "sql",
+                                                "minLen",
+                                                "maxLen",
+                                                "expression",
+                                                "enableNull",
+                                                "nullProb"
+                                              ]
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                {
+                                  "if": {
+                                    "properties": {
+                                      "type": {
+                                        "enum": [
+                                          "integer",
+                                          "long",
+                                          "short",
+                                          "decimal",
+                                          "double",
+                                          "float"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "then": {
+                                    "properties": {
+                                      "generator": {
+                                        "properties": {
+                                          "options": {
+                                            "propertyNames": {
+                                              "enum": [
+                                                "enableEdgeCase",
+                                                "edgeCaseProb",
+                                                "isUnique",
+                                                "seed",
+                                                "sql",
+                                                "min",
+                                                "max",
+                                                "stddev",
+                                                "mean"
+                                              ]
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                {
+                                  "if": {
+                                    "properties": {
+                                      "type": {
+                                        "enum": ["date", "timestamp"]
+                                      }
+                                    }
+                                  },
+                                  "then": {
+                                    "properties": {
+                                      "generator": {
+                                        "properties": {
+                                          "options": {
+                                            "propertyNames": {
+                                              "enum": [
+                                                "enableEdgeCase",
+                                                "edgeCaseProb",
+                                                "isUnique",
+                                                "seed",
+                                                "sql",
+                                                "min",
+                                                "max",
+                                                "enableNull",
+                                                "nullProb"
+                                              ]
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                {
+                                  "if": {
+                                    "properties": {
+                                      "type": {
+                                        "enum": ["binary"]
+                                      }
+                                    }
+                                  },
+                                  "then": {
+                                    "properties": {
+                                      "generator": {
+                                        "properties": {
+                                          "options": {
+                                            "propertyNames": {
+                                              "enum": [
+                                                "enableEdgeCase",
+                                                "edgeCaseProb",
+                                                "isUnique",
+                                                "seed",
+                                                "sql",
+                                                "minLen",
+                                                "maxLen",
+                                                "enableNull",
+                                                "nullProb"
+                                              ]
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                {
+                                  "if": {
+                                    "properties": {
+                                      "type": {
+                                        "enum": ["array"]
+                                      }
+                                    }
+                                  },
+                                  "then": {
+                                    "properties": {
+                                      "generator": {
+                                        "properties": {
+                                          "options": {
+                                            "propertyNames": {
+                                              "enum": [
+                                                "enableEdgeCase",
+                                                "edgeCaseProb",
+                                                "isUnique",
+                                                "seed",
+                                                "sql",
+                                                "arrayMinLen",
+                                                "arrayMaxLen",
+                                                "arrayType"
+                                              ]
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              ],
+                              "required": ["name"]
+                            }
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "allOf": [
+                  {
+                    "if": {
+                      "propertyNames": {
+                        "enum": ["postgres", "mysql"]
+                      }
+                    },
+                    "then": {
+                      "additionalProperties": {
+                        "items": {
+                          "properties": {
+                            "options": {
+                              "propertyNames": {
+                                "enum": ["dbtable"]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "propertyNames": {
+                        "enum": ["cassandra"]
+                      }
+                    },
+                    "then": {
+                      "additionalProperties": {
+                        "items": {
+                          "properties": {
+                            "options": {
+                              "propertyNames": {
+                                "enum": ["keyspace", "table"]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "propertyNames": {
+                        "enum": ["csv", "delta", "json", "orc", "parquet"]
+                      }
+                    },
+                    "then": {
+                      "additionalProperties": {
+                        "items": {
+                          "properties": {
+                            "options": {
+                              "propertyNames": {
+                                "enum": ["partitions", "path", "partitionBy"]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "propertyNames": {
+                        "enum": ["iceberg"]
+                      }
+                    },
+                    "then": {
+                      "additionalProperties": {
+                        "items": {
+                          "properties": {
+                            "options": {
+                              "propertyNames": {
+                                "enum": [
+                                  "catalogType",
+                                  "catalogUri",
+                                  "path",
+                                  "table"
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "propertyNames": {
+                        "enum": ["kafka"]
+                      }
+                    },
+                    "then": {
+                      "additionalProperties": {
+                        "items": {
+                          "properties": {
+                            "options": {
+                              "propertyNames": {
+                                "enum": ["topic", "rowsPerSecond"]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "propertyNames": {
+                        "enum": ["solace"]
+                      }
+                    },
+                    "then": {
+                      "additionalProperties": {
+                        "items": {
+                          "properties": {
+                            "options": {
+                              "propertyNames": {
+                                "enum": ["destinationName", "rowsPerSecond"]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "relationship": {
+                "type": "object",
+                "description": "Define any relationships between data generation data sources. For example, 'account_number' field being the same across two Postgres tables accounts and balances.",
+                "additionalProperties": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "description": "Uses the pattern: '<name of generation>.<field name>'",
+                    "pattern": "^[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-]+$"
+                  }
+                }
+              },
+              "validation": {
+                "type": "object",
+                "description": "Define data sources along with validation rules to run after data generation and your application/job.",
+                "propertyNames": {
+                  "enum": [
+                    "cassandra",
+                    "postgres",
+                    "mysql",
+                    "csv",
+                    "delta",
+                    "iceberg",
+                    "json",
+                    "orc",
+                    "parquet"
+                  ]
+                },
+                "additionalProperties": {
+                  "type": "array",
+                  "description": "Array of data validation tasks with the data source name as the key.",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "options": {
+                        "type": "object",
+                        "description": "Data source configuration details."
+                      },
+                      "validations": {
+                        "type": "array",
+                        "description": "Array of data validation rules.",
+                        "items": {
+                          "type": "object",
+                          "description": "Data validation rule.",
+                          "oneOf": [
+                            {
+                              "$ref": "#/$defs/BasicValidation"
+                            },
+                            {
+                              "$ref": "#/$defs/AggregationValidation"
+                            },
+                            {
+                              "$ref": "#/$defs/UpstreamValidation"
+                            },
+                            {
+                              "$ref": "#/$defs/ColumnNameValidation"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false,
+        "required": ["command"]
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "CountGenerator": {
+      "type": "object",
+      "properties": {
+        "options": {
+          "type": "object",
+          "propertyNames": {
+            "enum": ["sql", "min", "max", "stddev", "mean"]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "ValidationDescription": {
+      "const": "description",
+      "description": "Description of the validation rule. Helpful to provide additional context."
+    },
+    "ValidationErrorThreshold": {
+      "const": "errorThreshold",
+      "description": "Define the number of records or percentage of records that do not meet the validation rule before marking the validation as failed."
+    },
+    "ValidationPreFilterExpression": {
+      "const": "preFilterExpr",
+      "description": "SQL expression that is run to filter data before running the validation."
+    },
+    "ValidationExpression": {
+      "const": "expr",
+      "description": "SQL expression to define validation. Check https://spark.apache.org/docs/latest/api/sql for reference."
+    },
+    "ValidationSelectExpression": {
+      "const": "selectExpr",
+      "description": "SQL expression used to apply to columns before running validations."
+    },
+    "ValidationAggregateExpression": {
+      "const": "aggExpr",
+      "description": "SQL expression to define validation after aggregation. Check https://spark.apache.org/docs/latest/api/sql for reference."
+    },
+    "ValidationAggregateColumn": {
+      "const": "aggCol",
+      "description": "Column name to run aggregation on."
+    },
+    "ValidationAggregateType": {
+      "const": "aggType",
+      "description": "Type of aggregation to run. Can be either: sum, avg, max, min, mean, stddev, count."
+    },
+    "ValidationAggregateGroupByColumns": {
+      "const": "groupByCols",
+      "description": "Column names to group by for aggregation calculation."
+    },
+    "ValidationUpstreamJoinColumns": {
+      "const": "joinColumns",
+      "description": "Column names to run join operation on."
+    },
+    "ValidationUpstreamJoinType": {
+      "const": "joinType",
+      "description": "Type of join to run."
+    },
+    "ValidationUpstreamDataSource": {
+      "const": "upstreamDataSource",
+      "description": "Name of the upstream data source."
+    },
+    "ValidationUpstreamReadOptions": {
+      "const": "upstreamReadOptions",
+      "description": "Additional configuration to connect to upstream data source."
+    },
+    "ValidationUpstreamNestedValidation": {
+      "const": "validation",
+      "description": "Validation to run after join with upstream data source."
+    },
+    "ValidationColumnNameType": {
+      "const": "columnNameType",
+      "description": "Type of column name validation to run."
+    },
+    "ValidationColumnNameCount": {
+      "const": "count",
+      "description": "Expected number of column names."
+    },
+    "ValidationColumnNameMaxCount": {
+      "const": "maxCount",
+      "description": "Maximum number of column names."
+    },
+    "ValidationColumnNameMinCount": {
+      "const": "minCount",
+      "description": "Minimum number of column names."
+    },
+    "ValidationColumnNames": {
+      "const": "names",
+      "description": "Expected column names."
+    },
+    "BasicValidation": {
+      "propertyNames": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ValidationDescription"
+          },
+          {
+            "$ref": "#/$defs/ValidationErrorThreshold"
+          },
+          {
+            "$ref": "#/$defs/ValidationPreFilterExpression"
+          },
+          {
+            "$ref": "#/$defs/ValidationExpression"
+          },
+          {
+            "$ref": "#/$defs/ValidationSelectExpression"
+          }
+        ]
+      }
+    },
+    "AggregationValidation": {
+      "propertyNames": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ValidationDescription"
+          },
+          {
+            "$ref": "#/$defs/ValidationErrorThreshold"
+          },
+          {
+            "$ref": "#/$defs/ValidationPreFilterExpression"
+          },
+          {
+            "$ref": "#/$defs/ValidationAggregateColumn"
+          },
+          {
+            "$ref": "#/$defs/ValidationAggregateExpression"
+          },
+          {
+            "$ref": "#/$defs/ValidationAggregateGroupByColumns"
+          },
+          {
+            "$ref": "#/$defs/ValidationAggregateType"
+          }
+        ]
+      }
+    },
+    "UpstreamValidation": {
+      "propertyNames": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ValidationDescription"
+          },
+          {
+            "$ref": "#/$defs/ValidationErrorThreshold"
+          },
+          {
+            "$ref": "#/$defs/ValidationPreFilterExpression"
+          },
+          {
+            "$ref": "#/$defs/ValidationUpstreamDataSource"
+          },
+          {
+            "$ref": "#/$defs/ValidationUpstreamJoinColumns"
+          },
+          {
+            "$ref": "#/$defs/ValidationUpstreamJoinType"
+          },
+          {
+            "$ref": "#/$defs/ValidationUpstreamNestedValidation"
+          },
+          {
+            "$ref": "#/$defs/ValidationUpstreamReadOptions"
+          }
+        ]
+      }
+    },
+    "ColumnNameValidation": {
+      "propertyNames": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ValidationDescription"
+          },
+          {
+            "$ref": "#/$defs/ValidationErrorThreshold"
+          },
+          {
+            "$ref": "#/$defs/ValidationPreFilterExpression"
+          },
+          {
+            "$ref": "#/$defs/ValidationColumnNameCount"
+          },
+          {
+            "$ref": "#/$defs/ValidationColumnNameMaxCount"
+          },
+          {
+            "$ref": "#/$defs/ValidationColumnNameMinCount"
+          },
+          {
+            "$ref": "#/$defs/ValidationColumnNames"
+          },
+          {
+            "$ref": "#/$defs/ValidationColumnNameType"
+          }
+        ]
+      }
+    }
+  }
+}

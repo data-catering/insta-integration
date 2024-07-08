@@ -3,8 +3,11 @@
  */
 const { run } = require('./main')
 
-function script() {
-  run()
+async function script() {
+  await run()
 }
 
 module.exports = { script }
+module.exports.init = async function () {
+  await script()
+}

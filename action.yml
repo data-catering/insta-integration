@@ -2,8 +2,8 @@ name: 'insta-integration - Integration Testing'
 description: 'Automatically run integration tests for any application or job'
 author: 'Data Catering'
 branding:
-  icon: check-square
-  color: purple
+  icon: 'check-square'
+  color: 'green'
 
 # Define your inputs here.
 inputs:
@@ -19,25 +19,38 @@ inputs:
 
 # Define your outputs here.
 outputs:
-  results:
-    description: 'Result of integration tests'
+  num_records_generated:
+    value: '0'
+    description: 'Total number of records generated.'
+  num_success_validations:
+    value: '0'
+    description: 'Total number of successful validations.'
+  num_failed_validations:
+    value: '0'
+    description: 'Total number of failed validations.'
+  num_validations:
+    value: '0'
+    description: 'Total number of validations.'
+  validation_success_rate:
+    value: '0'
+    description: 'Success rate of validations (i.e. 0.75 = 75% success rate).'
 
 runs:
   using: 'composite'
   steps:
-    - uses: actions/checkout@v4
-    - name: Checkout insta-infra repo
-      uses: actions/checkout@v4
+    - uses: 'actions/checkout@v4'
+    - name: 'Checkout insta-infra repo'
+      uses: 'actions/checkout@v4'
       with:
-        repository: data-catering/insta-infra
-        path: ${{ inputs.insta_infra_folder }}
-    - name: Run integration tests
-      uses: actions/github-script@v6
+        repository: 'data-catering/insta-infra'
+        path: '${{ inputs.insta_infra_folder }}'
+    - name: 'Run integration tests'
+      uses: 'actions/github-script@v6'
       with:
         script: |
           const { script } = require("${{ github.action_path }}/dist/index.js")
           script()
       env:
-        CONFIGURATION_FILE: ${{ inputs.configuration_file }}
-        INSTA_INFRA_FOLDER: ${{ inputs.insta_infra_folder }}
-        BASE_FOLDER: ${{ github.action_path }}
+        CONFIGURATION_FILE: '${{ inputs.configuration_file }}'
+        INSTA_INFRA_FOLDER: '${{ inputs.insta_infra_folder }}'
+        BASE_FOLDER: '${{ github.action_path }}'

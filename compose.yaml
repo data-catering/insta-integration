@@ -1,0 +1,38 @@
+# Comments are provided throughout this file to help you get started.
+# If you need more help, visit the Docker Compose reference guide at
+# https://docs.docker.com/go/compose-spec-reference/
+
+# Here the instructions define your application as a service called "server".
+# This service is built from the Dockerfile in the current directory.
+# You can add other services your application may depend on here, such as a
+# database or a cache. For examples, see the Awesome Compose repository:
+# https://github.com/docker/awesome-compose
+services:
+  docker:
+    environment:
+      DOCKER_TLS_CERTDIR: /certs
+    healthcheck:
+      test: docker info
+      interval: 2s
+      retries: 5
+      start_period: 5s
+      timeout: 2s
+    image: docker:27.0.3-dind
+    privileged: true
+    volumes:
+      - ./docker/docker-certs-ca:/certs/ca
+      - ./docker/docker-certs-client:/certs/client
+      - ./docker/docker-data:/var/lib/docker
+  server:
+    build:
+      context: .
+    depends_on:
+      docker:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DOCKER_HOST: tcp://docker:2376
+      DOCKER_TLS_CERTDIR: /certs
+    privileged: true
+    volumes:
+      - ./docker/docker-certs-client:/certs/client
