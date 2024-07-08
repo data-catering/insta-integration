@@ -45,6 +45,7 @@ runs:
         repository: 'data-catering/insta-infra'
         path: '${{ inputs.insta_infra_folder }}'
     - name: 'Run integration tests'
+      id: 'insta-integration'
       uses: 'actions/github-script@v6'
       with:
         script: |

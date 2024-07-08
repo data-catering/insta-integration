@@ -65,11 +65,11 @@ available.
 Optional configurations to alter the files and folders used by the GitHub Action
 can be found below.
 
-| Name               | Description                                                                                  | Default                      |
-| ------------------ | -------------------------------------------------------------------------------------------- | ---------------------------- |
-| configuration_file | File path to configuration file                                                              | insta-integration.yaml       |
-| insta_infra_folder | Folder path to insta-infra ([this repository](https://github.com/data-catering/insta-infra)) | integration-test/insta-infra |
-| base_folder        | Folder path to use for execution files                                                       | /tmp/insta-integration       |
+| Name               | Description                                                                                  | Default                        |
+| ------------------ | -------------------------------------------------------------------------------------------- | ------------------------------ |
+| configuration_file | File path to configuration file                                                              | `insta-integration.yaml`       |
+| insta_infra_folder | Folder path to insta-infra ([this repository](https://github.com/data-catering/insta-infra)) | `integration-test/insta-infra` |
+| base_folder        | Folder path to use for execution files                                                       | `/tmp/insta-integration`       |
 
 To use these configurations, alter your
 `.github/workflows/integration-test.yaml`.
