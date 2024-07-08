@@ -7314,7 +7314,10 @@ function extractServiceFromGeneration(
 }
 
 function writeToFile(folder, fileName, content, isPlanText) {
-  fs.mkdirSync(folder, { recursive: true })
+  if (!fs.existsSync(folder)) {
+    core.debug(`Creating folder since it does not exist, folder=${folder}`)
+    fs.mkdirSync(folder, { recursive: true })
+  }
   const fileContent = isPlanText ? content : yaml.dump(content)
   core.debug(`Creating file, file-path=${folder}/${fileName}`)
   fs.writeFileSync(`${folder}/${fileName}`, fileContent, err => {
@@ -7488,6 +7491,7 @@ function runDataCaterer(
   const dataCatererEnv = extractDataCatererEnv(testConfig)
 
   writeToFile(`${configurationFolder}/plan`, 'my-plan.yaml', currentPlan)
+  fs.mkdirSync(`${configurationFolder}/task`, { recursive: true })
   for (const currTask of currentTasks) {
     writeToFile(
       `${configurationFolder}/task`,
@@ -7495,6 +7499,7 @@ function runDataCaterer(
       currTask
     )
   }
+  fs.mkdirSync(`${configurationFolder}/validation`, { recursive: true })
   writeToFile(
     `${configurationFolder}/validation`,
     'my-validations.yaml',
