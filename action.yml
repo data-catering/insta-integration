@@ -20,19 +20,19 @@ inputs:
 # Define your outputs here.
 outputs:
   num_records_generated:
-    value: '0'
+    value: ${{ steps.insta-integration.outputs.num_records_generated }}
     description: 'Total number of records generated.'
   num_success_validations:
-    value: '0'
+    value: ${{ steps.insta-integration.outputs.num_success_validations }}
     description: 'Total number of successful validations.'
   num_failed_validations:
-    value: '0'
+    value: ${{ steps.insta-integration.outputs.num_failed_validations }}
     description: 'Total number of failed validations.'
   num_validations:
-    value: '0'
+    value: ${{ steps.insta-integration.outputs.num_validations }}
     description: 'Total number of validations.'
   validation_success_rate:
-    value: '0'
+    value: ${{ steps.insta-integration.outputs.validation_success_rate }}
     description: 'Success rate of validations (i.e. 0.75 = 75% success rate).'
 
 runs:
