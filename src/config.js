@@ -232,7 +232,8 @@ const basePlan = () => {
     tasks: [],
     sinkOptions: {
       foreignKeys: []
-    }
+    },
+    validations: ['my-data-validation']
   }
 }
 
