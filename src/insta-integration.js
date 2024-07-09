@@ -289,6 +289,7 @@ function runDataCaterer(
   configurationFolder,
   sharedFolder
 ) {
+  core.info('Running data caterer for data generation and validation')
   // Use template plan and task YAML files
   // Also, template application.conf
   const currentPlan = basePlan()
@@ -334,7 +335,15 @@ function runDataCaterer(
   core.debug(
     `Running docker command for data-caterer, command=${dockerRunCommand}`
   )
-  execSync(dockerRunCommand)
+  try {
+    execSync(dockerRunCommand)
+  } catch (error) {
+    core.error('Failed to run data caterer for data generation and validation')
+    core.info('Checking data-caterer logs')
+    core.info(execSync('docker logs data-caterer').toString())
+    core.setFailed(error)
+    throw new Error(error)
+  }
 }
 
 async function cleanAppDoneFiles(parsedConfig, sharedFolder) {
@@ -388,20 +397,40 @@ async function checkExistsWithTimeout(filePath, timeout = 60000) {
   })
 }
 
-async function waitForDataGeneration(sharedFolder) {
+async function waitForDataGeneration(testConfig, sharedFolder) {
   // For applications/jobs that rely on data to be generated first before running, we wait until data caterer has
   // created a csv file to notify us that it has completed generating data
-  const notifyFilePath = `${sharedFolder}/notify/data-gen-done`
-  fs.mkdirSync(`${sharedFolder}/notify`, { recursive: true })
-  await checkExistsWithTimeout(notifyFilePath)
-  core.debug('Removing data generation done folder')
+  if (
+    testConfig.generation &&
+    Object.entries(testConfig.generation).length > 0
+  ) {
+    core.info('Waiting for data generation to be completed')
+    const notifyFilePath = `${sharedFolder}/notify/data-gen-done`
+    fs.mkdirSync(`${sharedFolder}/notify`, { recursive: true })
+    await checkExistsWithTimeout(notifyFilePath)
+    core.debug('Removing data generation done folder')
+    try {
+      fs.rmSync(notifyFilePath, {
+        recursive: true,
+        force: true
+      })
+    } catch (error) {
+      core.warning(error)
+    }
+  } else {
+    core.debug(
+      'No data generation defined, not waiting for data generation to be completed'
+    )
+  }
+}
+
+function runApplication(runConf, configFileDirectory) {
+  core.info('Running application/job')
   try {
-    fs.rmSync(notifyFilePath, {
-      recursive: true,
-      force: true
-    })
+    execSync(runConf.command, { cwd: configFileDirectory })
   } catch (error) {
-    core.warning(error)
+    core.error(`Failed to run application/job, command=${runConf.command}`)
+    core.setFailed(error)
   }
 }
 
@@ -440,20 +469,13 @@ async function runTests(parsedConfig, configFileDirectory, baseFolder) {
           runConf.test) ||
         !runConf.generateFirst
       ) {
-        core.info('Running data caterer for data generation and validation')
         runDataCaterer(runConf.test, i, configurationFolder, sharedFolder)
-        core.info('Waiting for data generation to be completed')
-        await waitForDataGeneration(sharedFolder, i)
-
-        core.info('Running application/job')
-        execSync(runConf.command, { cwd: configFileDirectory })
+        await waitForDataGeneration(runConf.test, sharedFolder, i)
+        runApplication(runConf, configFileDirectory)
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
       } else {
-        core.info('Running application/job')
-        execSync(runConf.command, { cwd: configFileDirectory })
+        runApplication(runConf, configFileDirectory)
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
-
-        core.info('Running data caterer for data generation and validation')
         runDataCaterer(runConf.test, i, configurationFolder, sharedFolder)
       }
     }

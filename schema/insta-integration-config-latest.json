@@ -48,6 +48,10 @@
               "type": "string"
             }
           },
+          "generateFirst": {
+            "type": "boolean",
+            "description": "Whether to run data generation before your application/job runs."
+          },
           "test": {
             "type": "object",
             "description": "Data Caterer configuration for data generation and validation",
