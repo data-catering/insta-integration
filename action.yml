@@ -46,6 +46,14 @@ runs:
       with:
         repository: 'data-catering/insta-infra'
         path: '${{ inputs.insta_infra_folder }}'
+    - name: 'Cache Docker images'
+      id: 'docker-cache'
+      uses: 'ScribeMD/docker-cache@0.5.0'
+      with:
+        key:
+          docker-${{ runner.os }}-${{
+          hashFiles(format('{0}/docker-compose.yaml',
+          inputs.insta_infra_folder)) }}
     - name: 'Run integration tests'
       id: 'insta-integration'
       uses: 'actions/github-script@v6'
@@ -57,11 +65,3 @@ runs:
         CONFIGURATION_FILE: '${{ inputs.configuration_file }}'
         INSTA_INFRA_FOLDER: '${{ inputs.insta_infra_folder }}'
         BASE_FOLDER: '/home/runner/work/${{ github.repository }}'
-    - name: 'Cache Docker images'
-      id: 'docker-cache'
-      uses: 'ScribeMD/docker-cache@0.5.0'
-      with:
-        key:
-          docker-${{ runner.os }}-${{
-          hashFiles(format('{0}/docker-compose.yaml',
-          inputs.insta_infra_folder)) }}

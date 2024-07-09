@@ -7703,6 +7703,7 @@ function showTestResultSummary(testResults) {
         numFailedValidations +=
           validation.numValidations - validation.numSuccess
         if (validation.errorValidations) {
+          core.info('Failed validation details')
           for (const errorValidation of validation.errorValidations) {
             core.info(
               `Failed validation: validation=${errorValidation.validation}, 
