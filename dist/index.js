@@ -7612,6 +7612,15 @@ async function waitForDataGeneration(testConfig, sharedFolder) {
 
 function runApplication(runConf, configFileDirectory) {
   core.info('Running application/job')
+  // Check for env variables to run application/job
+  if (runConf.env) {
+    for (const env of Object.entries(runConf.env)) {
+      core.debug(
+        `Setting environment variable for application/job run, key=${env[0]}`
+      )
+      process.env[env[0]] = env[1]
+    }
+  }
   try {
     execSync(runConf.command, { cwd: configFileDirectory })
   } catch (error) {
