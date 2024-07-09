@@ -7622,7 +7622,7 @@ function runApplication(runConf, configFileDirectory) {
     }
   }
   try {
-    execSync(runConf.command, { cwd: configFileDirectory })
+    execSync(runConf.command, { cwd: configFileDirectory, stdio: 'inherit' })
   } catch (error) {
     core.error(`Failed to run application/job, command=${runConf.command}`)
     core.setFailed(error)
