@@ -34,6 +34,9 @@ outputs:
   validation_success_rate:
     value: ${{ steps.insta-integration.outputs.validation_success_rate }}
     description: 'Success rate of validations (i.e. 0.75 = 75% success rate).'
+  full_result:
+    value: ${{ steps.insta-integration.outputs.full_result }}
+    description: 'All details about data generation and validation results.'
 
 runs:
   using: 'composite'

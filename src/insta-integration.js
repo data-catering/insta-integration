@@ -516,6 +516,15 @@ function showTestResultSummary(testResults) {
         numValidations += validation.numValidations
         numFailedValidations +=
           validation.numValidations - validation.numSuccess
+        if (validation.errorValidations) {
+          for (const errorValidation of validation.errorValidations) {
+            core.info(
+              `Failed validation: validation=${errorValidation.validation}, 
+              num-errors=${errorValidation.numErrors}, 
+              sample-error-value=${errorValidation.sampleErrorValues[0]}`
+            )
+          }
+        }
       }
     }
   }
@@ -531,6 +540,7 @@ function showTestResultSummary(testResults) {
   core.setOutput('num_failed_validations', numFailedValidations)
   core.setOutput('num_validations', numValidations)
   core.setOutput('validation_success_rate', validationSuccessRate)
+  core.setOutput('full_results', testResults)
 }
 
 /**
