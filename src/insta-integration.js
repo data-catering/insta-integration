@@ -440,7 +440,7 @@ async function runTests(parsedConfig, configFileDirectory, baseFolder) {
   const testResultsFolder = `${configurationFolder}/report`
   const testResultsFile = `${testResultsFolder}/results.json`
   const testResults = []
-  core.debug(`Using data caterer configuration folder: ${configurationFolder}`)
+  core.info(`Using data caterer configuration folder: ${configurationFolder}`)
   core.info(`Using shared folder: ${sharedFolder}`)
   core.info(`Using test results folder: ${testResultsFolder}`)
   fs.mkdirSync(configurationFolder, { recursive: true })
