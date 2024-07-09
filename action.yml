@@ -15,7 +15,7 @@ inputs:
     default: 'integration-test/insta-infra'
   base_folder:
     description: 'Folder path to use for execution files.'
-    default: '/tmp/insta-integration'
+    default: '/home/runner/work'
 
 # Define your outputs here.
 outputs:
@@ -53,7 +53,7 @@ runs:
       env:
         CONFIGURATION_FILE: '${{ inputs.configuration_file }}'
         INSTA_INFRA_FOLDER: '${{ inputs.insta_infra_folder }}'
-        BASE_FOLDER: '${{ github.action_path }}'
+        BASE_FOLDER: '/home/runner/work/${{ github.repository }}'
     - name: 'Cache Docker images'
       id: 'docker-cache'
       uses: 'ScribeMD/docker-cache@0.5.0'
