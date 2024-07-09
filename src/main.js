@@ -35,9 +35,9 @@ async function run() {
       getConfiguration()
 
     // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-    core.info(`Using config file: ${applicationConfig}`)
-    core.info(`Using insta-infra folder: ${instaInfraFolder}`)
-    core.info(`Using base folder: ${baseFolder}`)
+    core.debug(`Using config file: ${applicationConfig}`)
+    core.debug(`Using insta-infra folder: ${instaInfraFolder}`)
+    core.debug(`Using base folder: ${baseFolder}`)
     runIntegrationTests(applicationConfig, instaInfraFolder, baseFolder)
   } catch (error) {
     // Fail the workflow run if an error occurs

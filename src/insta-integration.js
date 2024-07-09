@@ -276,8 +276,15 @@ function createDockerNetwork() {
 
 function cleanDataCatererContainer() {
   try {
-    core.debug('Attempting to remove data-caterer Docker container')
-    execSync('docker rm data-caterer')
+    // Check if there is a data-caterer container or not
+    const dataCatererContainer = execSync(
+      'docker ps -a -q -f name=^/data-caterer$'
+    ).toString()
+    core.info(dataCatererContainer)
+    if (dataCatererContainer.length > 0) {
+      core.debug('Attempting to remove data-caterer Docker container')
+      execSync('docker rm data-caterer')
+    }
   } catch (error) {
     core.warning(error)
   }
@@ -449,9 +456,9 @@ async function runTests(parsedConfig, configFileDirectory, baseFolder) {
   const testResultsFolder = `${configurationFolder}/report`
   const testResultsFile = `${testResultsFolder}/results.json`
   const testResults = []
-  core.info(`Using data caterer configuration folder: ${configurationFolder}`)
-  core.info(`Using shared folder: ${sharedFolder}`)
-  core.info(`Using test results folder: ${testResultsFolder}`)
+  core.debug(`Using data caterer configuration folder: ${configurationFolder}`)
+  core.debug(`Using shared folder: ${sharedFolder}`)
+  core.debug(`Using test results folder: ${testResultsFolder}`)
   fs.mkdirSync(configurationFolder, { recursive: true })
   fs.mkdirSync(sharedFolder, { recursive: true })
   fs.mkdirSync(testResultsFolder, { recursive: true })
@@ -589,7 +596,8 @@ async function runIntegrationTests(
       process.env[env[0]] = env[1]
     }
     execSync(`./run.sh ${serviceNamesInstaInfra}`, {
-      cwd: instaInfraFolder
+      cwd: instaInfraFolder,
+      stdio: 'pipe'
     })
   }
 
