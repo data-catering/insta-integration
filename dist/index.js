@@ -7705,11 +7705,17 @@ function showTestResultSummary(testResults) {
         if (validation.errorValidations) {
           core.info('Failed validation details')
           for (const errorValidation of validation.errorValidations) {
-            core.info(
-              `Failed validation: validation=${errorValidation.validation}, 
-              num-errors=${errorValidation.numErrors}, 
-              sample-error-value=${errorValidation.sampleErrorValues[0]}`
-            )
+            const baseLog = `Failed validation: validation=${JSON.stringify(errorValidation.validation)}, num-errors=${errorValidation.numErrors}`
+            if (
+              errorValidation.sampleErrorValues &&
+              Object.entries(errorValidation.sampleErrorValues).length > 0
+            ) {
+              core.info(
+                `${baseLog}, sample-error-value=${JSON.stringify(errorValidation.sampleErrorValues[0])}`
+              )
+            } else {
+              core.info(baseLog)
+            }
           }
         }
       }
