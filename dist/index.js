@@ -6855,7 +6855,7 @@ flags {
     enableFailOnError = \${?ENABLE_FAIL_ON_ERROR}
     enableUniqueCheck = true
     enableUniqueCheck = \${?ENABLE_UNIQUE_CHECK}
-    enableSinkMetadata = true
+    enableSinkMetadata = false
     enableSinkMetadata = \${?ENABLE_SINK_METADATA}
     enableSaveReports = true
     enableSaveReports = \${?ENABLE_SAVE_REPORTS}
