@@ -16,6 +16,9 @@ inputs:
   base_folder:
     description: 'Folder path to use for execution files.'
     default: '/home/runner/work'
+  docker_token:
+    description: 'Docker token for access to data caterer full version.'
+    default: ''
 
 # Define your outputs here.
 outputs:

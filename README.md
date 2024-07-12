@@ -25,8 +25,18 @@ It is the closest you get to simulating production. This involves:
 
 ## Usage
 
-1. (**If you want it as a GitHub Action**) Create YAML file
-   `.github/workflows/integration-test.yaml`
+### CLI
+
+1. Install `insta-integration` via `npm install insta-integration`
+1. Create YAML file `insta-integration.yaml` to define your integration tests
+
+   1. [Examples can be found here.](example)
+
+1. Run `insta-integration`
+
+### GitHub Action
+
+1. Create YAML file `.github/workflows/integration-test.yaml`
 
    ```yaml
    name: Integration Test
@@ -103,6 +113,7 @@ available:
 | num_failed_validations  | Total number of failed validations.                         | 0       |
 | num_validations         | Total number of validations.                                | 0       |
 | validation_success_rate | Success rate of validations (i.e. 0.75 = 75% success rate). | 0       |
+| full_result             | All result details (data generation and validation).        | {}      |
 
 For example, you can print out the results like below:
 

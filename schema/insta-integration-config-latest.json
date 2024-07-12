@@ -4,6 +4,10 @@
   "description": "Configuration to run integration tests with insta-integration",
   "type": "object",
   "properties": {
+    "env": {
+      "$ref": "#/$defs/EnvironmentVariables",
+      "description": "Environment variables to be applied to all runs."
+    },
     "services": {
       "type": "array",
       "description": "External services required to run integration tests",
@@ -20,11 +24,8 @@
             "description": "Folder path or link to startup files. For example, 'postgres/sql' folder with schema and table creation SQL files. Refer to insta-infra for possible startup files"
           },
           "env": {
-            "type": "object",
-            "description": "Environment variables for the service.",
-            "additionalProperties": {
-              "type": "string"
-            }
+            "$ref": "#/$defs/EnvironmentVariables",
+            "description": "Environment variables for the service."
           }
         },
         "additionalProperties": false,
@@ -42,11 +43,8 @@
             "description": "Bash command to run your application/job."
           },
           "env": {
-            "type": "object",
-            "description": "Environment variables for your application/job.",
-            "additionalProperties": {
-              "type": "string"
-            }
+            "$ref": "#/$defs/EnvironmentVariables",
+            "description": "Environment variables for your application/job."
           },
           "generateFirst": {
             "type": "boolean",
@@ -57,11 +55,8 @@
             "description": "Data Caterer configuration for data generation and validation",
             "properties": {
               "env": {
-                "type": "object",
-                "description": "Environment variables for data-caterer Docker image. Check 'src/config.js' baseApplicationConf for potential environment variables to override.",
-                "additionalProperties": {
-                  "type": "string"
-                }
+                "$ref": "#/$defs/EnvironmentVariables",
+                "description": "Environment variables for data-caterer Docker image. Check 'src/config.js' baseApplicationConf for potential environment variables to override."
               },
               "generation": {
                 "type": "object",
@@ -94,7 +89,80 @@
                       },
                       "options": {
                         "type": "object",
-                        "description": "Data source configuration for data generation."
+                        "description": "Data source configuration for data generation.",
+                        "properties": {
+                          "metadataSourceType": {
+                            "description": "Type of metadata source for retrieval of schema information.",
+                            "enum": [
+                              "marquez",
+                              "open_api",
+                              "open_metadata",
+                              "open_data_contract_standard"
+                            ]
+                          }
+                        },
+                        "allOf": [
+                          {
+                            "if": {
+                              "properties": {
+                                "metadataSourceType": {
+                                  "const": "open_api"
+                                }
+                              },
+                              "required": ["metadataSourceType"]
+                            },
+                            "then": {
+                              "properties": {
+                                "schemaLocation": {
+                                  "description": "Location of OpenAPI spec file (can be a URL or file pathway).",
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["schemaLocation"]
+                            }
+                          },
+                          {
+                            "if": {
+                              "properties": {
+                                "metadataSourceType": {
+                                  "const": "open_metadata"
+                                }
+                              },
+                              "required": ["metadataSourceType"]
+                            },
+                            "then": {
+                              "properties": {
+                                "tableFqn": {
+                                  "description": "Table full qualified name."
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "if": {
+                              "properties": {
+                                "metadataSourceType": {
+                                  "const": "marquez"
+                                }
+                              },
+                              "required": ["metadataSourceType"]
+                            },
+                            "then": {
+                              "properties": {
+                                "metadataSourceUrl": {
+                                  "description": "Marquez URL."
+                                },
+                                "namespace": {
+                                  "description": "Namespace to retrieve metadata from."
+                                },
+                                "dataset": {
+                                  "description": "Dataset to retrieve metadata from."
+                                }
+                              },
+                              "required": ["metadataSourceUrl", "namespace"]
+                            }
+                          }
+                        ]
                       },
                       "count": {
                         "type": "object",
@@ -376,7 +444,10 @@
                           "properties": {
                             "options": {
                               "propertyNames": {
-                                "enum": ["dbtable"]
+                                "dbtable": {
+                                  "description": "Name of the schema and table to connect to (<schema>.<table> format).",
+                                  "pattern": "^(.+?)\\.(.+?)$"
+                                }
                               }
                             }
                           }
@@ -395,8 +466,13 @@
                         "items": {
                           "properties": {
                             "options": {
-                              "propertyNames": {
-                                "enum": ["keyspace", "table"]
+                              "properties": {
+                                "keyspace": {
+                                  "description": "Cassandra keyspace name."
+                                },
+                                "table": {
+                                  "description": "Cassandra table name."
+                                }
                               }
                             }
                           }
@@ -415,8 +491,16 @@
                         "items": {
                           "properties": {
                             "options": {
-                              "propertyNames": {
-                                "enum": ["partitions", "path", "partitionBy"]
+                              "properties": {
+                                "partitions": {
+                                  "description": "Number of file partitions to create."
+                                },
+                                "path": {
+                                  "description": "Path to file."
+                                },
+                                "partitionBy": {
+                                  "description": "Column name(s) to partition dataset by (comma separated)."
+                                }
                               }
                             }
                           }
@@ -435,13 +519,27 @@
                         "items": {
                           "properties": {
                             "options": {
-                              "propertyNames": {
-                                "enum": [
-                                  "catalogType",
-                                  "catalogUri",
-                                  "path",
-                                  "table"
-                                ]
+                              "properties": {
+                                "catalogType": {
+                                  "description": "Type of Iceberg catalog.",
+                                  "enum": [
+                                    "hive",
+                                    "hadoop",
+                                    "rest",
+                                    "glue",
+                                    "jdbc",
+                                    "nessie"
+                                  ]
+                                },
+                                "catalogUri": {
+                                  "description": "URI for catalog."
+                                },
+                                "path": {
+                                  "description": "Warehouse path for catalog."
+                                },
+                                "table": {
+                                  "description": "Table name of Iceberg dataset."
+                                }
                               }
                             }
                           }
@@ -460,8 +558,13 @@
                         "items": {
                           "properties": {
                             "options": {
-                              "propertyNames": {
-                                "enum": ["topic", "rowsPerSecond"]
+                              "properties": {
+                                "topic": {
+                                  "description": "Topic name."
+                                },
+                                "rowsPerSecond": {
+                                  "description": "Number of records to create per second."
+                                }
                               }
                             }
                           }
@@ -480,8 +583,13 @@
                         "items": {
                           "properties": {
                             "options": {
-                              "propertyNames": {
-                                "enum": ["destinationName", "rowsPerSecond"]
+                              "properties": {
+                                "destinationName": {
+                                  "description": "Name of the topic/queue."
+                                },
+                                "rowsPerSecond": {
+                                  "description": "Number of records to create per second."
+                                }
                               }
                             }
                           }
@@ -567,6 +675,12 @@
   },
   "additionalProperties": false,
   "$defs": {
+    "EnvironmentVariables": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
     "CountGenerator": {
       "type": "object",
       "properties": {

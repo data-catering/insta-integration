@@ -102,4 +102,6 @@ __tests__/runner/*
 .vscode
 *.code-workspace
 
-docker/*/*
+docker
+insta-integration-docker
+insta-infra

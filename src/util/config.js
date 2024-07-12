@@ -144,7 +144,7 @@ org.apache.spark.sql.cassandra {
 }
 
 http {
-    httpbin {
+    http {
     }
 }
 
@@ -289,7 +289,8 @@ function createDataCatererDockerRunCommand(
   sharedFolder,
   confFolder,
   planName,
-  envVars
+  envVars,
+  appIndex
 ) {
   const imageName = basicImage ? 'data-caterer-basic' : 'data-caterer'
   const dockerEnvVars = []
@@ -305,11 +306,12 @@ function createDataCatererDockerRunCommand(
   }
   return `docker run -d -p 4040:4040 \
   --network insta-infra_default \
-  --name data-caterer ${user} \
+  --name data-caterer-${appIndex} ${user} \
   -v ${confFolder}:/opt/app/custom \
   -v ${sharedFolder}:/opt/app/shared \
   -e APPLICATION_CONFIG_PATH=/opt/app/custom/application.conf \
   -e PLAN_FILE_PATH=/opt/app/custom/plan/${planName} \
+  -e LOG_LEVEL=debug \
   ${dockerEnvVars.join(' ')} \
   datacatering/${imageName}:${version}`
 }

@@ -1,4 +1,4 @@
-const { execSync, exec } = require('child_process')
+const { execSync, exec, spawn } = require('child_process')
 const core = require('@actions/core')
 const yaml = require('js-yaml')
 const fs = require('fs')
@@ -9,30 +9,18 @@ const {
   baseValidation,
   createDataCatererDockerRunCommand,
   notifyGenerationDoneTask
-} = require('./config')
+} = require('./util/config')
 const { dirname, basename } = require('node:path')
+const {
+  removeContainer,
+  runDockerImage,
+  createDockerNetwork,
+  dockerLogin,
+  waitForContainerToFinish
+} = require('./util/docker')
+const { checkInstaInfraExists, runServices } = require('./util/insta-infra')
 
 const dataCatererVersion = '0.11.8'
-
-/**
- * Check if service names are supported by insta-infra
- * @param instaInfraFolder Folder where insta-infra is checked out
- * @param serviceNames Array of services
- */
-function checkValidServiceNames(instaInfraFolder, serviceNames) {
-  core.debug('Checking insta-infra to see what services are supported')
-  const supportedServices = execSync(`${instaInfraFolder}/run.sh -l`, {
-    encoding: 'utf-8'
-  })
-  // eslint-disable-next-line github/array-foreach
-  serviceNames.forEach(service => {
-    if (!supportedServices.includes(service)) {
-      throw new Error(
-        `Found unsupported insta-infra service in configuration, service=${service}`
-      )
-    }
-  })
-}
 
 /**
  * Parse the configuration file as YAML
@@ -261,40 +249,12 @@ function extractDataCatererEnv(testConfig) {
   return testConfig.env ? testConfig.env : {}
 }
 
-function createDockerNetwork() {
-  // Check if network is created, create if it isn't
-  try {
-    const network_details = execSync('docker network ls')
-    if (!network_details.toString().includes('insta-infra_default')) {
-      core.info('Creating docker network: insta-infra_default')
-      execSync('docker network create insta-infra_default')
-    }
-  } catch (error) {
-    core.error(error)
-  }
-}
-
-function cleanDataCatererContainer() {
-  try {
-    // Check if there is a data-caterer container or not
-    const dataCatererContainer = execSync(
-      'docker ps -a -q -f name=^/data-caterer$'
-    ).toString()
-    core.info(dataCatererContainer)
-    if (dataCatererContainer.length > 0) {
-      core.debug('Attempting to remove data-caterer Docker container')
-      execSync('docker rm data-caterer')
-    }
-  } catch (error) {
-    core.warning(error)
-  }
-}
-
 function runDataCaterer(
   testConfig,
   appIndex,
   configurationFolder,
-  sharedFolder
+  sharedFolder,
+  dockerToken
 ) {
   core.info('Running data caterer for data generation and validation')
   // Use template plan and task YAML files
@@ -330,27 +290,17 @@ function runDataCaterer(
   )
   createDockerNetwork()
   const dockerRunCommand = createDataCatererDockerRunCommand(
-    true,
+    !dockerToken, //If docker token is defined, set to false
     dataCatererVersion,
     sharedFolder,
     configurationFolder,
     'my-plan.yaml',
-    dataCatererEnv
+    dataCatererEnv,
+    appIndex
   )
 
-  cleanDataCatererContainer()
-  core.debug(
-    `Running docker command for data-caterer, command=${dockerRunCommand}`
-  )
-  try {
-    execSync(dockerRunCommand)
-  } catch (error) {
-    core.error('Failed to run data caterer for data generation and validation')
-    core.info('Checking data-caterer logs')
-    core.info(execSync('docker logs data-caterer').toString())
-    core.setFailed(error)
-    throw new Error(error)
-  }
+  removeContainer(`data-caterer-${appIndex}`)
+  runDockerImage(dockerRunCommand, appIndex)
 }
 
 async function cleanAppDoneFiles(parsedConfig, sharedFolder) {
@@ -368,12 +318,12 @@ async function cleanAppDoneFiles(parsedConfig, sharedFolder) {
   }
 }
 
-async function checkExistsWithTimeout(filePath, timeout = 60000) {
+async function checkExistsWithTimeout(filePath, appIndex, timeout = 60000) {
   await new Promise(function (resolve, reject) {
     const timer = setTimeout(function () {
       watcher.close()
       core.info('Checking data-caterer logs')
-      core.info(execSync('docker logs data-caterer').toString())
+      core.info(execSync(`docker logs data-caterer-${appIndex}`).toString())
       reject(
         new Error(
           `File did not exist and was not created during the timeout, file=${filePath}`
@@ -404,7 +354,7 @@ async function checkExistsWithTimeout(filePath, timeout = 60000) {
   })
 }
 
-async function waitForDataGeneration(testConfig, sharedFolder) {
+async function waitForDataGeneration(testConfig, sharedFolder, appIndex) {
   // For applications/jobs that rely on data to be generated first before running, we wait until data caterer has
   // created a csv file to notify us that it has completed generating data
   if (
@@ -414,7 +364,7 @@ async function waitForDataGeneration(testConfig, sharedFolder) {
     core.info('Waiting for data generation to be completed')
     const notifyFilePath = `${sharedFolder}/notify/data-gen-done`
     fs.mkdirSync(`${sharedFolder}/notify`, { recursive: true })
-    await checkExistsWithTimeout(notifyFilePath)
+    await checkExistsWithTimeout(notifyFilePath, appIndex)
     core.debug('Removing data generation done folder')
     try {
       fs.rmSync(notifyFilePath, {
@@ -431,9 +381,7 @@ async function waitForDataGeneration(testConfig, sharedFolder) {
   }
 }
 
-function runApplication(runConf, configFileDirectory) {
-  core.info('Running application/job')
-  // Check for env variables to run application/job
+function setEnvironmentVariables(runConf) {
   if (runConf.env) {
     for (const env of Object.entries(runConf.env)) {
       core.debug(
@@ -441,27 +389,74 @@ function runApplication(runConf, configFileDirectory) {
       )
       process.env[env[0]] = env[1]
     }
-  }
-  try {
-    execSync(runConf.command, { cwd: configFileDirectory, stdio: 'inherit' })
-  } catch (error) {
-    core.error(`Failed to run application/job, command=${runConf.command}`)
-    core.setFailed(error)
+  } else {
+    core.debug('No environment variables set')
   }
 }
 
-async function runTests(parsedConfig, configFileDirectory, baseFolder) {
-  const configurationFolder = `${baseFolder}/conf`
-  const sharedFolder = `${baseFolder}/shared`
-  const testResultsFolder = `${configurationFolder}/report`
-  const testResultsFile = `${testResultsFolder}/results.json`
-  const testResults = []
+function runApplication(runConf, configFileDirectory, appIndex) {
+  core.info('Running application/job')
+  setEnvironmentVariables(runConf)
+  try {
+    const logStream = fs.createWriteStream(
+      `./logs/app_output_${appIndex}.log`,
+      { flags: 'w' }
+    )
+    // Run in the background
+    const runApp = spawn(runConf.command, [], {
+      cwd: configFileDirectory,
+      shell: true
+    })
+    runApp.stdout.pipe(logStream)
+    runApp.stderr.pipe(logStream)
+    runApp.on('close', function (code) {
+      core.debug(`Application ${appIndex} exited with code ${code}`)
+    })
+    runApp.on('error', function (err) {
+      core.error(`Application ${appIndex} failed with error`)
+      core.error(err)
+    })
+    return { runApp, logStream }
+  } catch (error) {
+    core.error(`Failed to run application/job, command=${runConf.command}`)
+    throw new Error(error)
+  }
+}
+
+function shutdownApplication(applicationProcess) {
+  core.debug('Attempting to close log stream')
+  applicationProcess.logStream.close()
+  core.debug(`Attempting to shut down application`)
+  if (applicationProcess && applicationProcess.runApp) {
+    applicationProcess.runApp.kill()
+  } else {
+    core.debug(`Application already stopped`)
+  }
+}
+
+function createFolders(configurationFolder, sharedFolder, testResultsFolder) {
   core.debug(`Using data caterer configuration folder: ${configurationFolder}`)
   core.debug(`Using shared folder: ${sharedFolder}`)
   core.debug(`Using test results folder: ${testResultsFolder}`)
   fs.mkdirSync(configurationFolder, { recursive: true })
   fs.mkdirSync(sharedFolder, { recursive: true })
   fs.mkdirSync(testResultsFolder, { recursive: true })
+}
+
+async function runTests(
+  parsedConfig,
+  configFileDirectory,
+  baseFolder,
+  dockerToken
+) {
+  const configurationFolder = `${baseFolder}/conf`
+  const sharedFolder = `${baseFolder}/shared`
+  const testResultsFolder = `${configurationFolder}/report`
+  const testResultsFile = `${testResultsFolder}/results.json`
+  const testResults = []
+  createFolders(configurationFolder, sharedFolder, testResultsFolder)
+  dockerLogin(dockerToken)
+  setEnvironmentVariables(parsedConfig)
 
   if (parsedConfig.run) {
     for (const [i, runConf] of parsedConfig.run.entries()) {
@@ -479,26 +474,52 @@ async function runTests(parsedConfig, configFileDirectory, baseFolder) {
         baseApplicationConf(),
         true
       )
+
+      let applicationProcess
       if (
-        (runConf.generateFirst &&
+        (typeof runConf.generateFirst !== 'undefined' &&
           runConf.generateFirst === 'true' &&
           runConf.test) ||
-        !runConf.generateFirst
+        typeof runConf.generateFirst === 'undefined'
       ) {
-        runDataCaterer(runConf.test, i, configurationFolder, sharedFolder)
+        runDataCaterer(
+          runConf.test,
+          i,
+          configurationFolder,
+          sharedFolder,
+          dockerToken
+        )
         await waitForDataGeneration(runConf.test, sharedFolder, i)
-        runApplication(runConf, configFileDirectory)
+        applicationProcess = runApplication(runConf, configFileDirectory, i)
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
       } else {
-        runApplication(runConf, configFileDirectory)
+        applicationProcess = runApplication(runConf, configFileDirectory, i)
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
-        runDataCaterer(runConf.test, i, configurationFolder, sharedFolder)
+        runDataCaterer(
+          runConf.test,
+          i,
+          configurationFolder,
+          sharedFolder,
+          dockerToken
+        )
       }
+      // Wait for data caterer container to finish
+      await waitForContainerToFinish(`data-caterer-${i}`)
+      // Check if file exists
+      if (fs.existsSync(testResultsFile)) {
+        testResults.push(JSON.parse(fs.readFileSync(testResultsFile, 'utf8')))
+        // Move results to separate file
+        fs.renameSync(testResultsFile, `${testResultsFolder}/results-${i}.json`)
+      } else {
+        core.warning(
+          `Test result file does not exist, unable to show test results, file=${testResultsFile}`
+        )
+      }
+      // Wait for generation and validation results file
+      core.info('Waiting for data validation results')
+      await checkExistsWithTimeout(testResultsFile, i)
+      shutdownApplication(applicationProcess)
     }
-    // Wait for generation and validation results file
-    core.info('Waiting for data validation results')
-    await checkExistsWithTimeout(testResultsFile)
-    testResults.push(JSON.parse(fs.readFileSync(testResultsFile, 'utf8')))
     await cleanAppDoneFiles(parsedConfig, sharedFolder)
   }
   return testResults
@@ -568,12 +589,14 @@ function showTestResultSummary(testResults) {
  * @param applicationConfig Base configuration file defining requirements for integration tests
  * @param instaInfraFolder  Folder where insta-infra is checked out
  * @param baseFolder Folder where execution files get saved
+ * @param dockerToken Token for logging in to Docker registry
  * @returns {string}  Results of data-caterer
  */
 async function runIntegrationTests(
   applicationConfig,
   instaInfraFolder,
-  baseFolder
+  baseFolder,
+  dockerToken
 ) {
   if (instaInfraFolder.includes(' ')) {
     throw new Error(`Invalid insta-infra folder pathway=${instaInfraFolder}`)
@@ -582,6 +605,7 @@ async function runIntegrationTests(
   const applicationConfigDirectory = applicationConfig.startsWith('/')
     ? dirname(applicationConfig)
     : `${process.cwd()}/${dirname(applicationConfig)}`
+  checkInstaInfraExists(instaInfraFolder)
 
   const { serviceNames, envVars } = extractServiceNamesAndEnv(
     parsedConfig,
@@ -589,22 +613,14 @@ async function runIntegrationTests(
   )
 
   if (serviceNames.length > 0) {
-    checkValidServiceNames(instaInfraFolder, serviceNames)
-    const serviceNamesInstaInfra = serviceNames.join(' ')
-    core.info(`Running services=${serviceNamesInstaInfra}`)
-    for (const env of Object.entries(envVars)) {
-      process.env[env[0]] = env[1]
-    }
-    execSync(`./run.sh ${serviceNamesInstaInfra}`, {
-      cwd: instaInfraFolder,
-      stdio: 'pipe'
-    })
+    runServices(instaInfraFolder, serviceNames, envVars)
   }
 
   const testResults = await runTests(
     parsedConfig,
     applicationConfigDirectory,
-    baseFolder
+    baseFolder,
+    dockerToken
   )
 
   core.info('Finished tests!')

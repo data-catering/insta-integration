@@ -29,4 +29,4 @@ COPY . .
 HEALTHCHECK --interval=1s --timeout=1s --start-period=1s --retries=5 CMD echo "hello world" || exit 1
 
 # Run the application.
-CMD ["node", "-e", "'require(\"./src/index\").init()'"]
+CMD ["node", "./src/index.js"]

@@ -6830,361 +6830,10 @@ exports["default"] = _default;
 
 /***/ }),
 
-/***/ 4570:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-const process = __nccwpck_require__(7282)
-
-/**
- * Application configuration file used by data-caterer
- * @returns {string}
- */
-const baseApplicationConf = () => `
-flags {
-    enableCount = true
-    enableCount = \${?ENABLE_COUNT}
-    enableGenerateData = true
-    enableGenerateData = \${?ENABLE_GENERATE_DATA}
-    enableGeneratePlanAndTasks = false
-    enableGeneratePlanAndTasks = \${?ENABLE_GENERATE_PLAN_AND_TASKS}
-    enableRecordTracking = true
-    enableRecordTracking = \${?ENABLE_RECORD_TRACKING}
-    enableDeleteGeneratedRecords = false
-    enableDeleteGeneratedRecords = \${?ENABLE_DELETE_GENERATED_RECORDS}
-    enableFailOnError = true
-    enableFailOnError = \${?ENABLE_FAIL_ON_ERROR}
-    enableUniqueCheck = true
-    enableUniqueCheck = \${?ENABLE_UNIQUE_CHECK}
-    enableSinkMetadata = false
-    enableSinkMetadata = \${?ENABLE_SINK_METADATA}
-    enableSaveReports = true
-    enableSaveReports = \${?ENABLE_SAVE_REPORTS}
-    enableValidation = true
-    enableValidation = \${?ENABLE_VALIDATION}
-    enableGenerateValidations = false
-    enableGenerateValidations = \${?ENABLE_GENERATE_VALIDATIONS}
-    enableAlerts = false
-    enableAlerts = \${?ENABLE_ALERTS}
-}
-
-folders {
-    generatedPlanAndTaskFolderPath = "/opt/app/custom/generated"
-    generatedPlanAndTaskFolderPath = \${?GENERATED_PLAN_AND_TASK_FOLDER_PATH}
-    planFilePath = "/opt/app/custom/plan/data-generation-plan.yaml"
-    planFilePath = \${?PLAN_FILE_PATH}
-    taskFolderPath = "/opt/app/custom/task"
-    taskFolderPath = \${?TASK_FOLDER_PATH}
-    recordTrackingFolderPath = "/opt/app/shared/data/generated/record-tracking"
-    recordTrackingFolderPath = \${?RECORD_TRACKING_FOLDER_PATH}
-    generatedReportsFolderPath = "/opt/app/custom/report"
-    generatedReportsFolderPath = \${?GENERATED_REPORTS_FOLDER_PATH}
-    validationFolderPath = "/opt/app/custom/validation"
-    validationFolderPath = \${?VALIDATION_FOLDER_PATH}
-}
-
-metadata {
-    numRecordsFromDataSource = 10000
-    numRecordsFromDataSource = \${?METADATA_NUM_RECORDS_FROM_DATA_SOURCE}
-    numRecordsForAnalysis = 10000
-    numRecordsForAnalysis = \${?METADATA_NUM_RECORDS_FOR_ANALYSIS}
-    oneOfDistinctCountVsCountThreshold = 0.1
-    oneOfDistinctCountVsCountThreshold = \${?METADATA_ONE_OF_DISTINCT_COUNT_VS_COUNT_THRESHOLD}
-    oneOfMinCount = 1000
-    oneOfMinCount = \${?ONE_OF_MIN_COUNT}
-    numGeneratedSamples = 10
-    numGeneratedSamples = \${?NUM_GENERATED_SAMPLES}
-}
-
-generation {
-    numRecordsPerBatch = 100000
-    numRecordsPerBatch = \${?GENERATION_NUM_RECORDS_PER_BATCH}
-}
-
-validation {
-    numSampleErrorRecords = 5
-    numSampleErrorRecords = \${?NUM_SAMPLE_ERROR_RECORDS}
-    enableDeleteRecordTrackingFiles = true
-    enableDeleteRecordTrackingFiles = \${?ENABLE_DELETE_RECORD_TRACKING_FILES}
-}
-
-alert {
-    triggerOn = "all"
-    triggerOn = \${?ALERT_TRIGGER_ON}
-    slackAlertConfig {
-        token = ""
-        token = \${?ALERT_SLACK_TOKEN}
-        channels = []
-        channels = \${?ALERT_SLACK_CHANNELS}
-    }
-}
-
-runtime {
-    master = "local[*]"
-    master = \${?DATA_CATERER_MASTER}
-    config {
-        "spark.driver.memory" = "2g"
-        "spark.executor.memory" = "2g"
-        "spark.sql.cbo.enabled" = "true"
-        "spark.sql.adaptive.enabled" = "true"
-        "spark.sql.cbo.planStats.enabled" = "true"
-        "spark.sql.legacy.allowUntypedScalaUDF" = "true"
-        "spark.sql.legacy.allowParameterlessCount" = "true",
-        "spark.sql.statistics.histogram.enabled" = "true"
-        "spark.sql.shuffle.partitions" = "10"
-        "spark.sql.catalog.postgres" = ""
-        "spark.sql.catalog.cassandra" = "com.datastax.spark.connector.datasource.CassandraCatalog"
-        "spark.sql.catalog.iceberg" = "org.apache.iceberg.spark.SparkCatalog",
-        "spark.sql.catalog.iceberg.type" = "hadoop",
-        "spark.hadoop.fs.s3a.directory.marker.retention" = "keep"
-        "spark.hadoop.fs.s3a.bucket.all.committer.magic.enabled" = "true"
-        "spark.hadoop.fs.hdfs.impl" = "org.apache.hadoop.hdfs.DistributedFileSystem",
-        "spark.hadoop.fs.file.impl" = "com.globalmentor.apache.hadoop.fs.BareLocalFileSystem",
-        "spark.sql.extensions" = "io.delta.sql.DeltaSparkSessionExtension,org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
-    }
-}
-
-# connection type
-jdbc {
-    postgres {
-        url = "jdbc:postgresql://postgres:5432/customer"
-        url = \${?POSTGRES_URL}
-        user = "postgres"
-        user = \${?POSTGRES_USER}
-        password = "postgres"
-        password = \${?POSTGRES_PASSWORD}
-        driver = "org.postgresql.Driver"
-    }
-    mysql {
-        url = "jdbc:mysql://mysql:3306/customer"
-        url = \${?MYSQL_URL}
-        user = "root"
-        user = \${?MYSQL_USER}
-        password = "root"
-        password = \${?MYSQL_PASSWORD}
-        driver = "com.mysql.cj.jdbc.Driver"
-    }
-}
-
-org.apache.spark.sql.cassandra {
-    cassandra {
-        spark.cassandra.connection.host = "cassandra"
-        spark.cassandra.connection.host = \${?CASSANDRA_HOST}
-        spark.cassandra.connection.port = "9042"
-        spark.cassandra.connection.port = \${?CASSANDRA_PORT}
-        spark.cassandra.auth.username = "cassandra"
-        spark.cassandra.auth.username = \${?CASSANDRA_USER}
-        spark.cassandra.auth.password = "cassandra"
-        spark.cassandra.auth.password = \${?CASSANDRA_PASSWORD}
-    }
-}
-
-http {
-    httpbin {
-    }
-}
-
-jms {
-    solace {
-        initialContextFactory = "com.solacesystems.jndi.SolJNDIInitialContextFactory"
-        initialContextFactory = \${?SOLACE_INITIAL_CONTEXT_FACTORY}
-        connectionFactory = "/jms/cf/default"
-        connectionFactory = \${?SOLACE_CONNECTION_FACTORY}
-        url = "smf://solace:55554"
-        url = \${?SOLACE_URL}
-        user = "admin"
-        user = \${?SOLACE_USER}
-        password = "admin"
-        password = \${?SOLACE_PASSWORD}
-        vpnName = "default"
-        vpnName = \${?SOLACE_VPN}
-    }
-}
-
-kafka {
-    kafka {
-        kafka.bootstrap.servers = "localhost:9092"
-        kafka.bootstrap.servers = \${?KAFKA_BOOTSTRAP_SERVERS}
-    }
-}
-
-csv {
-    csv {
-        path = "/opt/app/data/csv"
-        path = \${?CSV_PATH}
-    }
-}
-
-delta {
-    delta {
-        path = "/opt/app/data/delta"
-        path = \${?DELTA_PATH}
-    }
-}
-
-iceberg {
-    iceberg {
-        path = "/opt/app/data/iceberg"
-        path = \${?ICEBERG_WAREHOUSE_PATH}
-        catalogType = "hadoop"
-        catalogType = \${?ICEBERG_CATALOG_TYPE}
-        catalogUri = ""
-        catalogUri = \${?ICEBERG_CATALOG_URI}
-    }
-}
-
-json {
-    json {
-        path = "/opt/app/data/json"
-        path = \${?JSON_PATH}
-    }
-}
-
-orc {
-    orc {
-        path = "/opt/app/data/orc"
-        path = \${?JSON_PATH}
-    }
-}
-
-parquet {
-    parquet {
-        path = "/opt/app/data/parquet"
-        path = \${?PARQUET_PATH}
-    }
-}
-
-datastax-java-driver.advanced.metadata.schema.refreshed-keyspaces = [ "/.*/" ]
-`
-
-/**
- * Plan format used by data-caterer
- * @type {function(): {name: string, description: string, sinkOptions: {foreignKeys: []}, tasks: [], validations: []}}
- */
-const basePlan = () => {
-  return {
-    name: 'my-plan',
-    description: 'my-description',
-    tasks: [],
-    sinkOptions: {
-      foreignKeys: []
-    },
-    validations: ['my-data-validation']
-  }
-}
-
-/**
- * Task format used by data-caterer
- * @type {function(): {name: string, steps: []}}
- */
-const baseTask = () => {
-  return {
-    name: 'my-data-generation-task',
-    steps: []
-  }
-}
-
-/**
- * Validation format used by data-caterer
- * @type {(function(): *)|*}
- */
-const baseValidation = () => {
-  return {
-    name: 'my-data-validation',
-    description: 'my-validations',
-    dataSources: {}
-  }
-}
-
-/**
- * Extra step appended to notify when data-caterer has finished generating data
- * @returns {{schema: {fields: [{name: string}]}, name: string, options: {path: string}, count: {records: number}}}
- */
-const notifyGenerationDoneTask = () => {
-  return {
-    name: 'data-gen-done-step',
-    options: { path: '/opt/app/shared/notify/data-gen-done' },
-    count: { records: 1 },
-    schema: { fields: [{ name: 'account_id' }] }
-  }
-}
-
-/**
- * Docker run command for data-caterer
- * @param basicImage  Use basic image or not
- * @param version Version of data-caterer Docker image
- * @param sharedFolder  Folder to volume mount for shared files between host and data-caterer
- * @param confFolder  Configuration folder containing plan, tasks and validation files
- * @param planName  Name of plan to run
- * @param envVars Additional environment variables for data-caterer
- * @returns {string}
- */
-function createDataCatererDockerRunCommand(
-  basicImage,
-  version,
-  sharedFolder,
-  confFolder,
-  planName,
-  envVars
-) {
-  const imageName = basicImage ? 'data-caterer-basic' : 'data-caterer'
-  const dockerEnvVars = []
-  for (const [key, value] of Object.entries(envVars)) {
-    dockerEnvVars.push(`-e ${key}=${value}`)
-  }
-  const uid = process.getuid()
-  const gid = process.getgid()
-  let user = ``
-  //to make it work for GitHub Actions
-  if (uid === 1001) {
-    user = `--user ${uid}:${gid}`
-  }
-  return `docker run -d -p 4040:4040 \
-  --network insta-infra_default \
-  --name data-caterer ${user} \
-  -v ${confFolder}:/opt/app/custom \
-  -v ${sharedFolder}:/opt/app/shared \
-  -e APPLICATION_CONFIG_PATH=/opt/app/custom/application.conf \
-  -e PLAN_FILE_PATH=/opt/app/custom/plan/${planName} \
-  ${dockerEnvVars.join(' ')} \
-  datacatering/${imageName}:${version}`
-}
-
-module.exports = {
-  baseTask,
-  basePlan,
-  baseValidation,
-  baseApplicationConf,
-  notifyGenerationDoneTask,
-  createDataCatererDockerRunCommand
-}
-
-
-/***/ }),
-
-/***/ 4351:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-/**
- * The entrypoint for the action.
- */
-const { run } = __nccwpck_require__(1713)
-
-async function script() {
-  await run()
-}
-
-module.exports = { script }
-module.exports.init = async function () {
-  await script()
-}
-
-
-/***/ }),
-
 /***/ 8370:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-const { execSync, exec } = __nccwpck_require__(2081)
+const { execSync, exec, spawn } = __nccwpck_require__(2081)
 const core = __nccwpck_require__(2186)
 const yaml = __nccwpck_require__(1917)
 const fs = __nccwpck_require__(7147)
@@ -7195,30 +6844,18 @@ const {
   baseValidation,
   createDataCatererDockerRunCommand,
   notifyGenerationDoneTask
-} = __nccwpck_require__(4570)
+} = __nccwpck_require__(841)
 const { dirname, basename } = __nccwpck_require__(9411)
+const {
+  removeContainer,
+  runDockerImage,
+  createDockerNetwork,
+  dockerLogin,
+  waitForContainerToFinish
+} = __nccwpck_require__(2519)
+const { checkInstaInfraExists, runServices } = __nccwpck_require__(9758)
 
 const dataCatererVersion = '0.11.8'
-
-/**
- * Check if service names are supported by insta-infra
- * @param instaInfraFolder Folder where insta-infra is checked out
- * @param serviceNames Array of services
- */
-function checkValidServiceNames(instaInfraFolder, serviceNames) {
-  core.debug('Checking insta-infra to see what services are supported')
-  const supportedServices = execSync(`${instaInfraFolder}/run.sh -l`, {
-    encoding: 'utf-8'
-  })
-  // eslint-disable-next-line github/array-foreach
-  serviceNames.forEach(service => {
-    if (!supportedServices.includes(service)) {
-      throw new Error(
-        `Found unsupported insta-infra service in configuration, service=${service}`
-      )
-    }
-  })
-}
 
 /**
  * Parse the configuration file as YAML
@@ -7447,40 +7084,12 @@ function extractDataCatererEnv(testConfig) {
   return testConfig.env ? testConfig.env : {}
 }
 
-function createDockerNetwork() {
-  // Check if network is created, create if it isn't
-  try {
-    const network_details = execSync('docker network ls')
-    if (!network_details.toString().includes('insta-infra_default')) {
-      core.info('Creating docker network: insta-infra_default')
-      execSync('docker network create insta-infra_default')
-    }
-  } catch (error) {
-    core.error(error)
-  }
-}
-
-function cleanDataCatererContainer() {
-  try {
-    // Check if there is a data-caterer container or not
-    const dataCatererContainer = execSync(
-      'docker ps -a -q -f name=^/data-caterer$'
-    ).toString()
-    core.info(dataCatererContainer)
-    if (dataCatererContainer.length > 0) {
-      core.debug('Attempting to remove data-caterer Docker container')
-      execSync('docker rm data-caterer')
-    }
-  } catch (error) {
-    core.warning(error)
-  }
-}
-
 function runDataCaterer(
   testConfig,
   appIndex,
   configurationFolder,
-  sharedFolder
+  sharedFolder,
+  dockerToken
 ) {
   core.info('Running data caterer for data generation and validation')
   // Use template plan and task YAML files
@@ -7516,27 +7125,17 @@ function runDataCaterer(
   )
   createDockerNetwork()
   const dockerRunCommand = createDataCatererDockerRunCommand(
-    true,
+    !dockerToken, //If docker token is defined, set to false
     dataCatererVersion,
     sharedFolder,
     configurationFolder,
     'my-plan.yaml',
-    dataCatererEnv
+    dataCatererEnv,
+    appIndex
   )
 
-  cleanDataCatererContainer()
-  core.debug(
-    `Running docker command for data-caterer, command=${dockerRunCommand}`
-  )
-  try {
-    execSync(dockerRunCommand)
-  } catch (error) {
-    core.error('Failed to run data caterer for data generation and validation')
-    core.info('Checking data-caterer logs')
-    core.info(execSync('docker logs data-caterer').toString())
-    core.setFailed(error)
-    throw new Error(error)
-  }
+  removeContainer(`data-caterer-${appIndex}`)
+  runDockerImage(dockerRunCommand, appIndex)
 }
 
 async function cleanAppDoneFiles(parsedConfig, sharedFolder) {
@@ -7554,12 +7153,12 @@ async function cleanAppDoneFiles(parsedConfig, sharedFolder) {
   }
 }
 
-async function checkExistsWithTimeout(filePath, timeout = 60000) {
+async function checkExistsWithTimeout(filePath, appIndex, timeout = 60000) {
   await new Promise(function (resolve, reject) {
     const timer = setTimeout(function () {
       watcher.close()
       core.info('Checking data-caterer logs')
-      core.info(execSync('docker logs data-caterer').toString())
+      core.info(execSync(`docker logs data-caterer-${appIndex}`).toString())
       reject(
         new Error(
           `File did not exist and was not created during the timeout, file=${filePath}`
@@ -7590,7 +7189,7 @@ async function checkExistsWithTimeout(filePath, timeout = 60000) {
   })
 }
 
-async function waitForDataGeneration(testConfig, sharedFolder) {
+async function waitForDataGeneration(testConfig, sharedFolder, appIndex) {
   // For applications/jobs that rely on data to be generated first before running, we wait until data caterer has
   // created a csv file to notify us that it has completed generating data
   if (
@@ -7600,7 +7199,7 @@ async function waitForDataGeneration(testConfig, sharedFolder) {
     core.info('Waiting for data generation to be completed')
     const notifyFilePath = `${sharedFolder}/notify/data-gen-done`
     fs.mkdirSync(`${sharedFolder}/notify`, { recursive: true })
-    await checkExistsWithTimeout(notifyFilePath)
+    await checkExistsWithTimeout(notifyFilePath, appIndex)
     core.debug('Removing data generation done folder')
     try {
       fs.rmSync(notifyFilePath, {
@@ -7617,9 +7216,7 @@ async function waitForDataGeneration(testConfig, sharedFolder) {
   }
 }
 
-function runApplication(runConf, configFileDirectory) {
-  core.info('Running application/job')
-  // Check for env variables to run application/job
+function setEnvironmentVariables(runConf) {
   if (runConf.env) {
     for (const env of Object.entries(runConf.env)) {
       core.debug(
@@ -7627,27 +7224,74 @@ function runApplication(runConf, configFileDirectory) {
       )
       process.env[env[0]] = env[1]
     }
-  }
-  try {
-    execSync(runConf.command, { cwd: configFileDirectory, stdio: 'inherit' })
-  } catch (error) {
-    core.error(`Failed to run application/job, command=${runConf.command}`)
-    core.setFailed(error)
+  } else {
+    core.debug('No environment variables set')
   }
 }
 
-async function runTests(parsedConfig, configFileDirectory, baseFolder) {
-  const configurationFolder = `${baseFolder}/conf`
-  const sharedFolder = `${baseFolder}/shared`
-  const testResultsFolder = `${configurationFolder}/report`
-  const testResultsFile = `${testResultsFolder}/results.json`
-  const testResults = []
+function runApplication(runConf, configFileDirectory, appIndex) {
+  core.info('Running application/job')
+  setEnvironmentVariables(runConf)
+  try {
+    const logStream = fs.createWriteStream(
+      `./logs/app_output_${appIndex}.log`,
+      { flags: 'w' }
+    )
+    // Run in the background
+    const runApp = spawn(runConf.command, [], {
+      cwd: configFileDirectory,
+      shell: true
+    })
+    runApp.stdout.pipe(logStream)
+    runApp.stderr.pipe(logStream)
+    runApp.on('close', function (code) {
+      core.debug(`Application ${appIndex} exited with code ${code}`)
+    })
+    runApp.on('error', function (err) {
+      core.error(`Application ${appIndex} failed with error`)
+      core.error(err)
+    })
+    return { runApp, logStream }
+  } catch (error) {
+    core.error(`Failed to run application/job, command=${runConf.command}`)
+    throw new Error(error)
+  }
+}
+
+function shutdownApplication(applicationProcess) {
+  core.debug('Attempting to close log stream')
+  applicationProcess.logStream.close()
+  core.debug(`Attempting to shut down application`)
+  if (applicationProcess && applicationProcess.runApp) {
+    applicationProcess.runApp.kill()
+  } else {
+    core.debug(`Application already stopped`)
+  }
+}
+
+function createFolders(configurationFolder, sharedFolder, testResultsFolder) {
   core.debug(`Using data caterer configuration folder: ${configurationFolder}`)
   core.debug(`Using shared folder: ${sharedFolder}`)
   core.debug(`Using test results folder: ${testResultsFolder}`)
   fs.mkdirSync(configurationFolder, { recursive: true })
   fs.mkdirSync(sharedFolder, { recursive: true })
   fs.mkdirSync(testResultsFolder, { recursive: true })
+}
+
+async function runTests(
+  parsedConfig,
+  configFileDirectory,
+  baseFolder,
+  dockerToken
+) {
+  const configurationFolder = `${baseFolder}/conf`
+  const sharedFolder = `${baseFolder}/shared`
+  const testResultsFolder = `${configurationFolder}/report`
+  const testResultsFile = `${testResultsFolder}/results.json`
+  const testResults = []
+  createFolders(configurationFolder, sharedFolder, testResultsFolder)
+  dockerLogin(dockerToken)
+  setEnvironmentVariables(parsedConfig)
 
   if (parsedConfig.run) {
     for (const [i, runConf] of parsedConfig.run.entries()) {
@@ -7665,26 +7309,52 @@ async function runTests(parsedConfig, configFileDirectory, baseFolder) {
         baseApplicationConf(),
         true
       )
+
+      let applicationProcess
       if (
-        (runConf.generateFirst &&
+        (typeof runConf.generateFirst !== 'undefined' &&
           runConf.generateFirst === 'true' &&
           runConf.test) ||
-        !runConf.generateFirst
+        typeof runConf.generateFirst === 'undefined'
       ) {
-        runDataCaterer(runConf.test, i, configurationFolder, sharedFolder)
+        runDataCaterer(
+          runConf.test,
+          i,
+          configurationFolder,
+          sharedFolder,
+          dockerToken
+        )
         await waitForDataGeneration(runConf.test, sharedFolder, i)
-        runApplication(runConf, configFileDirectory)
+        applicationProcess = runApplication(runConf, configFileDirectory, i)
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
       } else {
-        runApplication(runConf, configFileDirectory)
+        applicationProcess = runApplication(runConf, configFileDirectory, i)
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
-        runDataCaterer(runConf.test, i, configurationFolder, sharedFolder)
+        runDataCaterer(
+          runConf.test,
+          i,
+          configurationFolder,
+          sharedFolder,
+          dockerToken
+        )
       }
+      // Wait for data caterer container to finish
+      await waitForContainerToFinish(`data-caterer-${i}`)
+      // Check if file exists
+      if (fs.existsSync(testResultsFile)) {
+        testResults.push(JSON.parse(fs.readFileSync(testResultsFile, 'utf8')))
+        // Move results to separate file
+        fs.renameSync(testResultsFile, `${testResultsFolder}/results-${i}.json`)
+      } else {
+        core.warning(
+          `Test result file does not exist, unable to show test results, file=${testResultsFile}`
+        )
+      }
+      // Wait for generation and validation results file
+      core.info('Waiting for data validation results')
+      await checkExistsWithTimeout(testResultsFile, i)
+      shutdownApplication(applicationProcess)
     }
-    // Wait for generation and validation results file
-    core.info('Waiting for data validation results')
-    await checkExistsWithTimeout(testResultsFile)
-    testResults.push(JSON.parse(fs.readFileSync(testResultsFile, 'utf8')))
     await cleanAppDoneFiles(parsedConfig, sharedFolder)
   }
   return testResults
@@ -7754,12 +7424,14 @@ function showTestResultSummary(testResults) {
  * @param applicationConfig Base configuration file defining requirements for integration tests
  * @param instaInfraFolder  Folder where insta-infra is checked out
  * @param baseFolder Folder where execution files get saved
+ * @param dockerToken Token for logging in to Docker registry
  * @returns {string}  Results of data-caterer
  */
 async function runIntegrationTests(
   applicationConfig,
   instaInfraFolder,
-  baseFolder
+  baseFolder,
+  dockerToken
 ) {
   if (instaInfraFolder.includes(' ')) {
     throw new Error(`Invalid insta-infra folder pathway=${instaInfraFolder}`)
@@ -7768,6 +7440,7 @@ async function runIntegrationTests(
   const applicationConfigDirectory = applicationConfig.startsWith('/')
     ? dirname(applicationConfig)
     : `${process.cwd()}/${dirname(applicationConfig)}`
+  checkInstaInfraExists(instaInfraFolder)
 
   const { serviceNames, envVars } = extractServiceNamesAndEnv(
     parsedConfig,
@@ -7775,22 +7448,14 @@ async function runIntegrationTests(
   )
 
   if (serviceNames.length > 0) {
-    checkValidServiceNames(instaInfraFolder, serviceNames)
-    const serviceNamesInstaInfra = serviceNames.join(' ')
-    core.info(`Running services=${serviceNamesInstaInfra}`)
-    for (const env of Object.entries(envVars)) {
-      process.env[env[0]] = env[1]
-    }
-    execSync(`./run.sh ${serviceNamesInstaInfra}`, {
-      cwd: instaInfraFolder,
-      stdio: 'pipe'
-    })
+    runServices(instaInfraFolder, serviceNames, envVars)
   }
 
   const testResults = await runTests(
     parsedConfig,
     applicationConfigDirectory,
-    baseFolder
+    baseFolder,
+    dockerToken
   )
 
   core.info('Finished tests!')
@@ -7809,11 +7474,27 @@ module.exports = { runIntegrationTests }
 
 const core = __nccwpck_require__(2186)
 const { runIntegrationTests } = __nccwpck_require__(8370)
+const { resolve } = __nccwpck_require__(9411)
+
+function getBaseFolder(baseFolder) {
+  const folderFromConf =
+    core.getInput('base_folder', {}).length > 0
+      ? core.getInput('base_folder', {})
+      : baseFolder
+  if (!baseFolder) {
+    throw new Error('Base folder configuration is not defined')
+  }
+  const cleanFolderPath = folderFromConf.replace('/./', '')
+  return cleanFolderPath.startsWith('/')
+    ? cleanFolderPath
+    : `${resolve()}/${cleanFolderPath}`
+}
 
 function getConfiguration() {
   let applicationConfig = process.env.CONFIGURATION_FILE
   let instaInfraFolder = process.env.INSTA_INFRA_FOLDER
   let baseFolder = process.env.BASE_FOLDER
+  let dockerToken = process.env.DOCKER_TOKEN
 
   console.log('Checking if GitHub Action properties defined')
   if (core) {
@@ -7825,13 +7506,14 @@ function getConfiguration() {
       core.getInput('insta_infra_folder', {}).length > 0
         ? core.getInput('insta_infra_folder', {})
         : instaInfraFolder
-    baseFolder =
-      core.getInput('base_folder', {}).length > 0
-        ? core.getInput('base_folder', {}).replace('/./', '')
-        : baseFolder.replace('/./', '')
+    baseFolder = getBaseFolder(baseFolder)
+    dockerToken =
+      core.getInput('docker_token', {}).length > 0
+        ? core.getInput('docker_token', {})
+        : dockerToken
   }
 
-  return { applicationConfig, instaInfraFolder, baseFolder }
+  return { applicationConfig, instaInfraFolder, baseFolder, dockerToken }
 }
 
 /**
@@ -7840,23 +7522,531 @@ function getConfiguration() {
  */
 async function run() {
   try {
-    const { applicationConfig, instaInfraFolder, baseFolder } =
+    const { applicationConfig, instaInfraFolder, baseFolder, dockerToken } =
       getConfiguration()
 
     // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
     core.debug(`Using config file: ${applicationConfig}`)
     core.debug(`Using insta-infra folder: ${instaInfraFolder}`)
     core.debug(`Using base folder: ${baseFolder}`)
-    runIntegrationTests(applicationConfig, instaInfraFolder, baseFolder)
+    runIntegrationTests(
+      applicationConfig,
+      instaInfraFolder,
+      baseFolder,
+      dockerToken
+    )
   } catch (error) {
     // Fail the workflow run if an error occurs
     core.setFailed(error.message)
   }
 }
 
-module.exports = {
-  run
+module.exports = { run }
+
+
+/***/ }),
+
+/***/ 841:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+const process = __nccwpck_require__(7282)
+
+/**
+ * Application configuration file used by data-caterer
+ * @returns {string}
+ */
+const baseApplicationConf = () => `
+flags {
+    enableCount = true
+    enableCount = \${?ENABLE_COUNT}
+    enableGenerateData = true
+    enableGenerateData = \${?ENABLE_GENERATE_DATA}
+    enableGeneratePlanAndTasks = false
+    enableGeneratePlanAndTasks = \${?ENABLE_GENERATE_PLAN_AND_TASKS}
+    enableRecordTracking = true
+    enableRecordTracking = \${?ENABLE_RECORD_TRACKING}
+    enableDeleteGeneratedRecords = false
+    enableDeleteGeneratedRecords = \${?ENABLE_DELETE_GENERATED_RECORDS}
+    enableFailOnError = true
+    enableFailOnError = \${?ENABLE_FAIL_ON_ERROR}
+    enableUniqueCheck = true
+    enableUniqueCheck = \${?ENABLE_UNIQUE_CHECK}
+    enableSinkMetadata = false
+    enableSinkMetadata = \${?ENABLE_SINK_METADATA}
+    enableSaveReports = true
+    enableSaveReports = \${?ENABLE_SAVE_REPORTS}
+    enableValidation = true
+    enableValidation = \${?ENABLE_VALIDATION}
+    enableGenerateValidations = false
+    enableGenerateValidations = \${?ENABLE_GENERATE_VALIDATIONS}
+    enableAlerts = false
+    enableAlerts = \${?ENABLE_ALERTS}
 }
+
+folders {
+    generatedPlanAndTaskFolderPath = "/opt/app/custom/generated"
+    generatedPlanAndTaskFolderPath = \${?GENERATED_PLAN_AND_TASK_FOLDER_PATH}
+    planFilePath = "/opt/app/custom/plan/data-generation-plan.yaml"
+    planFilePath = \${?PLAN_FILE_PATH}
+    taskFolderPath = "/opt/app/custom/task"
+    taskFolderPath = \${?TASK_FOLDER_PATH}
+    recordTrackingFolderPath = "/opt/app/shared/data/generated/record-tracking"
+    recordTrackingFolderPath = \${?RECORD_TRACKING_FOLDER_PATH}
+    generatedReportsFolderPath = "/opt/app/custom/report"
+    generatedReportsFolderPath = \${?GENERATED_REPORTS_FOLDER_PATH}
+    validationFolderPath = "/opt/app/custom/validation"
+    validationFolderPath = \${?VALIDATION_FOLDER_PATH}
+}
+
+metadata {
+    numRecordsFromDataSource = 10000
+    numRecordsFromDataSource = \${?METADATA_NUM_RECORDS_FROM_DATA_SOURCE}
+    numRecordsForAnalysis = 10000
+    numRecordsForAnalysis = \${?METADATA_NUM_RECORDS_FOR_ANALYSIS}
+    oneOfDistinctCountVsCountThreshold = 0.1
+    oneOfDistinctCountVsCountThreshold = \${?METADATA_ONE_OF_DISTINCT_COUNT_VS_COUNT_THRESHOLD}
+    oneOfMinCount = 1000
+    oneOfMinCount = \${?ONE_OF_MIN_COUNT}
+    numGeneratedSamples = 10
+    numGeneratedSamples = \${?NUM_GENERATED_SAMPLES}
+}
+
+generation {
+    numRecordsPerBatch = 100000
+    numRecordsPerBatch = \${?GENERATION_NUM_RECORDS_PER_BATCH}
+}
+
+validation {
+    numSampleErrorRecords = 5
+    numSampleErrorRecords = \${?NUM_SAMPLE_ERROR_RECORDS}
+    enableDeleteRecordTrackingFiles = true
+    enableDeleteRecordTrackingFiles = \${?ENABLE_DELETE_RECORD_TRACKING_FILES}
+}
+
+alert {
+    triggerOn = "all"
+    triggerOn = \${?ALERT_TRIGGER_ON}
+    slackAlertConfig {
+        token = ""
+        token = \${?ALERT_SLACK_TOKEN}
+        channels = []
+        channels = \${?ALERT_SLACK_CHANNELS}
+    }
+}
+
+runtime {
+    master = "local[*]"
+    master = \${?DATA_CATERER_MASTER}
+    config {
+        "spark.driver.memory" = "2g"
+        "spark.executor.memory" = "2g"
+        "spark.sql.cbo.enabled" = "true"
+        "spark.sql.adaptive.enabled" = "true"
+        "spark.sql.cbo.planStats.enabled" = "true"
+        "spark.sql.legacy.allowUntypedScalaUDF" = "true"
+        "spark.sql.legacy.allowParameterlessCount" = "true",
+        "spark.sql.statistics.histogram.enabled" = "true"
+        "spark.sql.shuffle.partitions" = "10"
+        "spark.sql.catalog.postgres" = ""
+        "spark.sql.catalog.cassandra" = "com.datastax.spark.connector.datasource.CassandraCatalog"
+        "spark.sql.catalog.iceberg" = "org.apache.iceberg.spark.SparkCatalog",
+        "spark.sql.catalog.iceberg.type" = "hadoop",
+        "spark.hadoop.fs.s3a.directory.marker.retention" = "keep"
+        "spark.hadoop.fs.s3a.bucket.all.committer.magic.enabled" = "true"
+        "spark.hadoop.fs.hdfs.impl" = "org.apache.hadoop.hdfs.DistributedFileSystem",
+        "spark.hadoop.fs.file.impl" = "com.globalmentor.apache.hadoop.fs.BareLocalFileSystem",
+        "spark.sql.extensions" = "io.delta.sql.DeltaSparkSessionExtension,org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
+    }
+}
+
+# connection type
+jdbc {
+    postgres {
+        url = "jdbc:postgresql://postgres:5432/customer"
+        url = \${?POSTGRES_URL}
+        user = "postgres"
+        user = \${?POSTGRES_USER}
+        password = "postgres"
+        password = \${?POSTGRES_PASSWORD}
+        driver = "org.postgresql.Driver"
+    }
+    mysql {
+        url = "jdbc:mysql://mysql:3306/customer"
+        url = \${?MYSQL_URL}
+        user = "root"
+        user = \${?MYSQL_USER}
+        password = "root"
+        password = \${?MYSQL_PASSWORD}
+        driver = "com.mysql.cj.jdbc.Driver"
+    }
+}
+
+org.apache.spark.sql.cassandra {
+    cassandra {
+        spark.cassandra.connection.host = "cassandra"
+        spark.cassandra.connection.host = \${?CASSANDRA_HOST}
+        spark.cassandra.connection.port = "9042"
+        spark.cassandra.connection.port = \${?CASSANDRA_PORT}
+        spark.cassandra.auth.username = "cassandra"
+        spark.cassandra.auth.username = \${?CASSANDRA_USER}
+        spark.cassandra.auth.password = "cassandra"
+        spark.cassandra.auth.password = \${?CASSANDRA_PASSWORD}
+    }
+}
+
+http {
+    http {
+    }
+}
+
+jms {
+    solace {
+        initialContextFactory = "com.solacesystems.jndi.SolJNDIInitialContextFactory"
+        initialContextFactory = \${?SOLACE_INITIAL_CONTEXT_FACTORY}
+        connectionFactory = "/jms/cf/default"
+        connectionFactory = \${?SOLACE_CONNECTION_FACTORY}
+        url = "smf://solace:55554"
+        url = \${?SOLACE_URL}
+        user = "admin"
+        user = \${?SOLACE_USER}
+        password = "admin"
+        password = \${?SOLACE_PASSWORD}
+        vpnName = "default"
+        vpnName = \${?SOLACE_VPN}
+    }
+}
+
+kafka {
+    kafka {
+        kafka.bootstrap.servers = "localhost:9092"
+        kafka.bootstrap.servers = \${?KAFKA_BOOTSTRAP_SERVERS}
+    }
+}
+
+csv {
+    csv {
+        path = "/opt/app/data/csv"
+        path = \${?CSV_PATH}
+    }
+}
+
+delta {
+    delta {
+        path = "/opt/app/data/delta"
+        path = \${?DELTA_PATH}
+    }
+}
+
+iceberg {
+    iceberg {
+        path = "/opt/app/data/iceberg"
+        path = \${?ICEBERG_WAREHOUSE_PATH}
+        catalogType = "hadoop"
+        catalogType = \${?ICEBERG_CATALOG_TYPE}
+        catalogUri = ""
+        catalogUri = \${?ICEBERG_CATALOG_URI}
+    }
+}
+
+json {
+    json {
+        path = "/opt/app/data/json"
+        path = \${?JSON_PATH}
+    }
+}
+
+orc {
+    orc {
+        path = "/opt/app/data/orc"
+        path = \${?JSON_PATH}
+    }
+}
+
+parquet {
+    parquet {
+        path = "/opt/app/data/parquet"
+        path = \${?PARQUET_PATH}
+    }
+}
+
+datastax-java-driver.advanced.metadata.schema.refreshed-keyspaces = [ "/.*/" ]
+`
+
+/**
+ * Plan format used by data-caterer
+ * @type {function(): {name: string, description: string, sinkOptions: {foreignKeys: []}, tasks: [], validations: []}}
+ */
+const basePlan = () => {
+  return {
+    name: 'my-plan',
+    description: 'my-description',
+    tasks: [],
+    sinkOptions: {
+      foreignKeys: []
+    },
+    validations: ['my-data-validation']
+  }
+}
+
+/**
+ * Task format used by data-caterer
+ * @type {function(): {name: string, steps: []}}
+ */
+const baseTask = () => {
+  return {
+    name: 'my-data-generation-task',
+    steps: []
+  }
+}
+
+/**
+ * Validation format used by data-caterer
+ * @type {(function(): *)|*}
+ */
+const baseValidation = () => {
+  return {
+    name: 'my-data-validation',
+    description: 'my-validations',
+    dataSources: {}
+  }
+}
+
+/**
+ * Extra step appended to notify when data-caterer has finished generating data
+ * @returns {{schema: {fields: [{name: string}]}, name: string, options: {path: string}, count: {records: number}}}
+ */
+const notifyGenerationDoneTask = () => {
+  return {
+    name: 'data-gen-done-step',
+    options: { path: '/opt/app/shared/notify/data-gen-done' },
+    count: { records: 1 },
+    schema: { fields: [{ name: 'account_id' }] }
+  }
+}
+
+/**
+ * Docker run command for data-caterer
+ * @param basicImage  Use basic image or not
+ * @param version Version of data-caterer Docker image
+ * @param sharedFolder  Folder to volume mount for shared files between host and data-caterer
+ * @param confFolder  Configuration folder containing plan, tasks and validation files
+ * @param planName  Name of plan to run
+ * @param envVars Additional environment variables for data-caterer
+ * @returns {string}
+ */
+function createDataCatererDockerRunCommand(
+  basicImage,
+  version,
+  sharedFolder,
+  confFolder,
+  planName,
+  envVars,
+  appIndex
+) {
+  const imageName = basicImage ? 'data-caterer-basic' : 'data-caterer'
+  const dockerEnvVars = []
+  for (const [key, value] of Object.entries(envVars)) {
+    dockerEnvVars.push(`-e ${key}=${value}`)
+  }
+  const uid = process.getuid()
+  const gid = process.getgid()
+  let user = ``
+  //to make it work for GitHub Actions
+  if (uid === 1001) {
+    user = `--user ${uid}:${gid}`
+  }
+  return `docker run -d -p 4040:4040 \
+  --network insta-infra_default \
+  --name data-caterer-${appIndex} ${user} \
+  -v ${confFolder}:/opt/app/custom \
+  -v ${sharedFolder}:/opt/app/shared \
+  -e APPLICATION_CONFIG_PATH=/opt/app/custom/application.conf \
+  -e PLAN_FILE_PATH=/opt/app/custom/plan/${planName} \
+  -e LOG_LEVEL=debug \
+  ${dockerEnvVars.join(' ')} \
+  datacatering/${imageName}:${version}`
+}
+
+module.exports = {
+  baseTask,
+  basePlan,
+  baseValidation,
+  baseApplicationConf,
+  notifyGenerationDoneTask,
+  createDataCatererDockerRunCommand
+}
+
+
+/***/ }),
+
+/***/ 2519:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+const { execSync } = __nccwpck_require__(2081)
+const core = __nccwpck_require__(2186)
+
+function runDockerImage(dockerCommand, appIndex) {
+  core.debug(
+    `Running docker command for data-caterer, command=${dockerCommand}`
+  )
+  try {
+    execSync(dockerCommand)
+  } catch (error) {
+    core.error('Failed to run data caterer for data generation and validation')
+    core.info('Checking data-caterer logs')
+    core.info(execSync(`docker logs data-caterer-${appIndex}`).toString())
+    core.setFailed(error)
+    throw new Error(error)
+  }
+}
+
+function removeContainer(containerName) {
+  try {
+    // Check if there is a data-caterer container or not
+    const dataCatererContainer = execSync(
+      `docker ps -a -q -f name=^/${containerName}$`
+    ).toString()
+    core.info(dataCatererContainer)
+    if (dataCatererContainer.length > 0) {
+      core.debug(`Attempting to remove ${containerName} Docker container`)
+      execSync(`docker rm ${containerName}`)
+    }
+  } catch (error) {
+    core.warning(error)
+  }
+}
+
+function createDockerNetwork() {
+  // Check if network is created, create if it isn't
+  try {
+    const network_details = execSync('docker network ls')
+    if (!network_details.toString().includes('insta-infra_default')) {
+      core.info('Creating docker network: insta-infra_default')
+      execSync('docker network create insta-infra_default')
+    }
+  } catch (error) {
+    core.error('Failed to check Docker network')
+    throw new Error(error)
+  }
+}
+
+function dockerLogin(dockerToken) {
+  if (dockerToken) {
+    core.debug('Docker token is defined, attempting to login')
+    try {
+      execSync(`docker login -u datacatering -p ${dockerToken}`, {
+        stdio: 'pipe'
+      })
+    } catch (error) {
+      core.warning(
+        'Failed to login with Docker token, continuing to attempt tests'
+      )
+    }
+  } else {
+    core.debug('No Docker token defined')
+  }
+}
+
+function isContainerFinished(containerName) {
+  const isExited = execSync(
+    `docker ps -q -f name=${containerName} -f status=exited`
+  )
+  if (isExited.toString().length > 0) {
+    core.debug(`${containerName} docker container has finished`)
+    return true
+  } else {
+    return false
+  }
+}
+
+function waitForContainerToFinish(containerName) {
+  const poll = resolve => {
+    if (isContainerFinished(containerName)) resolve()
+    else setTimeout(_ => poll(resolve), 500)
+  }
+
+  return new Promise(poll)
+}
+
+module.exports = {
+  runDockerImage,
+  createDockerNetwork,
+  removeContainer,
+  dockerLogin,
+  waitForContainerToFinish
+}
+
+
+/***/ }),
+
+/***/ 9758:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+const fs = __nccwpck_require__(7147)
+const core = __nccwpck_require__(2186)
+const { execSync } = __nccwpck_require__(2081)
+
+function checkInstaInfraExists(instaInfraFolder) {
+  if (!fs.existsSync(instaInfraFolder)) {
+    core.debug('insta-infra does not exist, checking out repository')
+    try {
+      execSync(
+        `git clone git@github.com:data-catering/insta-infra.git ${instaInfraFolder}`
+      )
+    } catch (error) {
+      core.error(
+        `Failed to checkout insta-infra repository to ${instaInfraFolder} folder, trying via https`
+      )
+      core.error(error)
+      try {
+        execSync(
+          `git clone https://github.com/data-catering/insta-infra.git ${instaInfraFolder}`
+        )
+      } catch (httpsError) {
+        core.error(
+          `Failed to checkout insta-infra repository via https to ${instaInfraFolder}`
+        )
+        core.error(httpsError)
+        throw new Error('Failed to checkout insta-infra repository')
+      }
+    }
+  }
+}
+
+/**
+ * Check if service names are supported by insta-infra
+ * @param instaInfraFolder Folder where insta-infra is checked out
+ * @param serviceNames Array of services
+ */
+function checkValidServiceNames(instaInfraFolder, serviceNames) {
+  core.debug('Checking insta-infra to see what services are supported')
+  const supportedServices = execSync(`${instaInfraFolder}/run.sh -l`, {
+    encoding: 'utf-8'
+  })
+  // eslint-disable-next-line github/array-foreach
+  serviceNames.forEach(service => {
+    if (!supportedServices.includes(service)) {
+      throw new Error(
+        `Found unsupported insta-infra service in configuration, service=${service}`
+      )
+    }
+  })
+}
+
+function runServices(instaInfraFolder, serviceNames, envVars) {
+  checkValidServiceNames(instaInfraFolder, serviceNames)
+  const serviceNamesInstaInfra = serviceNames.join(' ')
+  core.info(`Running services=${serviceNamesInstaInfra}`)
+  for (const env of Object.entries(envVars)) {
+    process.env[env[0]] = env[1]
+  }
+  execSync(`./run.sh ${serviceNamesInstaInfra}`, {
+    cwd: instaInfraFolder,
+    stdio: 'pipe'
+  })
+}
+
+module.exports = { checkInstaInfraExists, runServices }
 
 
 /***/ }),
@@ -8011,13 +8201,19 @@ module.exports = require("util");
 /******/ 	if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = __dirname + "/";
 /******/ 	
 /************************************************************************/
-/******/ 	
-/******/ 	// startup
-/******/ 	// Load entry module and return exports
-/******/ 	// This entry module is referenced by other modules so it can't be inlined
-/******/ 	var __webpack_exports__ = __nccwpck_require__(4351);
-/******/ 	module.exports = __webpack_exports__;
-/******/ 	
+var __webpack_exports__ = {};
+// This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
+(() => {
+/**
+ * The entrypoint for the action.
+ */
+const { run } = __nccwpck_require__(1713)
+
+run()
+
+})();
+
+module.exports = __webpack_exports__;
 /******/ })()
 ;
 //# sourceMappingURL=index.js.map
