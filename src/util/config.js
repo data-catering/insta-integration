@@ -290,12 +290,19 @@ function createDataCatererDockerRunCommand(
   confFolder,
   planName,
   envVars,
+  volumeMounts,
   appIndex
 ) {
   const imageName = basicImage ? 'data-caterer-basic' : 'data-caterer'
   const dockerEnvVars = []
+  const dockerMounts = []
   for (const [key, value] of Object.entries(envVars)) {
     dockerEnvVars.push(`-e ${key}=${value}`)
+  }
+  if (volumeMounts) {
+    for (const mount of volumeMounts) {
+      dockerMounts.push(`-v ${mount}`)
+    }
   }
   const uid = process.getuid()
   const gid = process.getgid()
@@ -308,7 +315,7 @@ function createDataCatererDockerRunCommand(
   --network insta-infra_default \
   --name data-caterer-${appIndex} ${user} \
   -v ${confFolder}:/opt/app/custom \
-  -v ${sharedFolder}:/opt/app/shared \
+  -v ${sharedFolder}:/opt/app/shared ${dockerMounts.join(' ')} \
   -e APPLICATION_CONFIG_PATH=/opt/app/custom/application.conf \
   -e PLAN_FILE_PATH=/opt/app/custom/plan/${planName} \
   ${dockerEnvVars.join(' ')} \

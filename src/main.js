@@ -1,6 +1,7 @@
 const core = require('@actions/core')
 const { runIntegrationTests } = require('./insta-integration')
 const { resolve } = require('node:path')
+const logger = require('./util/log')
 
 function getBaseFolder(baseFolder) {
   const folderFromConf =
@@ -20,9 +21,10 @@ function getConfiguration() {
   let applicationConfig = process.env.CONFIGURATION_FILE
   let instaInfraFolder = process.env.INSTA_INFRA_FOLDER
   let baseFolder = process.env.BASE_FOLDER
+  let dataCatererVersion = process.env.DATA_CATERER_VERSION
   let dockerToken = process.env.DOCKER_TOKEN
 
-  console.log('Checking if GitHub Action properties defined')
+  logger.debug('Checking if GitHub Action properties defined')
   if (core) {
     applicationConfig =
       core.getInput('configuration_file', {}).length > 0
@@ -33,13 +35,23 @@ function getConfiguration() {
         ? core.getInput('insta_infra_folder', {})
         : instaInfraFolder
     baseFolder = getBaseFolder(baseFolder)
+    dataCatererVersion =
+      core.getInput('data_caterer_version', {}).length > 0
+        ? core.getInput('data_caterer_version', {})
+        : dataCatererVersion
     dockerToken =
       core.getInput('docker_token', {}).length > 0
         ? core.getInput('docker_token', {})
         : dockerToken
   }
 
-  return { applicationConfig, instaInfraFolder, baseFolder, dockerToken }
+  return {
+    applicationConfig,
+    instaInfraFolder,
+    baseFolder,
+    dataCatererVersion,
+    dockerToken
+  }
 }
 
 /**
@@ -47,22 +59,19 @@ function getConfiguration() {
  * @returns {Promise<void>} Resolves when the action is complete.
  */
 async function run() {
+  logger.info('Starting insta-integration run')
   try {
-    const { applicationConfig, instaInfraFolder, baseFolder, dockerToken } =
-      getConfiguration()
+    const config = getConfiguration()
 
     // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-    core.debug(`Using config file: ${applicationConfig}`)
-    core.debug(`Using insta-infra folder: ${instaInfraFolder}`)
-    core.debug(`Using base folder: ${baseFolder}`)
-    runIntegrationTests(
-      applicationConfig,
-      instaInfraFolder,
-      baseFolder,
-      dockerToken
-    )
+    logger.debug(`Using config file: ${config.applicationConfig}`)
+    logger.debug(`Using insta-infra folder: ${config.instaInfraFolder}`)
+    logger.debug(`Using base folder: ${config.baseFolder}`)
+    logger.debug(`Using data-caterer version: ${config.dataCatererVersion}`)
+    runIntegrationTests(config)
   } catch (error) {
     // Fail the workflow run if an error occurs
+    logger.error(error)
     core.setFailed(error.message)
   }
 }

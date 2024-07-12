@@ -599,6 +599,14 @@
                   }
                 ]
               },
+              "mount": {
+                "description": "Add volume mount for data-caterer Docker image.",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": ".*:.*"
+                }
+              },
               "relationship": {
                 "type": "object",
                 "description": "Define any relationships between data generation data sources. For example, 'account_number' field being the same across two Postgres tables accounts and balances.",

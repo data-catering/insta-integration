@@ -16,6 +16,9 @@ inputs:
   base_folder:
     description: 'Folder path to use for execution files.'
     default: '/home/runner/work'
+  data_caterer_version:
+    description: 'Version of data-caterer Docker image'
+    default: '0.11.8'
   docker_token:
     description: 'Docker token for access to data caterer full version.'
     default: ''
@@ -68,3 +71,4 @@ runs:
         CONFIGURATION_FILE: '${{ inputs.configuration_file }}'
         INSTA_INFRA_FOLDER: '${{ inputs.insta_infra_folder }}'
         BASE_FOLDER: '/home/runner/work/${{ github.repository }}'
+        DATA_CATERER_VERSION: '${{ inputs.data_caterer_version }}'

@@ -19,8 +19,7 @@ const {
   waitForContainerToFinish
 } = require('./util/docker')
 const { checkInstaInfraExists, runServices } = require('./util/insta-infra')
-
-const dataCatererVersion = '0.11.8'
+const logger = require('./util/log')
 
 /**
  * Parse the configuration file as YAML
@@ -28,7 +27,7 @@ const dataCatererVersion = '0.11.8'
  * @returns {*} Parsed YAML object
  */
 function parseConfigFile(configFile) {
-  core.debug(`Parsing config file=${configFile}`)
+  logger.debug(`Parsing config file=${configFile}`)
   try {
     return yaml.load(fs.readFileSync(configFile, 'utf8'))
   } catch (error) {
@@ -50,7 +49,7 @@ function extractServiceNamesAndEnv(parsedConfig, configFileDirectory) {
   if (parsedConfig.services) {
     for (const service of parsedConfig.services) {
       let serviceName = service.name
-      core.debug(`Parsing config for service=${serviceName}`)
+      logger.debug(`Parsing config for service=${serviceName}`)
       let envServiceName = serviceName.toUpperCase()
       const sptName = serviceName.split(':')
 
@@ -71,7 +70,7 @@ function extractServiceNamesAndEnv(parsedConfig, configFileDirectory) {
           envVars[kv[0]] = kv[1]
         }
       } else {
-        core.debug(
+        logger.debug(
           `No environment variables defined for service=${serviceName}`
         )
       }
@@ -81,21 +80,23 @@ function extractServiceNamesAndEnv(parsedConfig, configFileDirectory) {
         const downloadLinkRegex = new RegExp('^http[s?]://.*$')
         if (downloadLinkRegex.test(service.data)) {
           // TODO Then we need to download directory or file
-          core.info('Downloading data is currently unsupported')
+          logger.info('Downloading data is currently unsupported')
         } else if (service.data.startsWith('/')) {
           envVars[`${envServiceName}_DATA`] = service.data
         } else {
           // Can be a relative directory from perspective of config YAML
           const dataPath = `${configFileDirectory}/${service.data}`
-          core.debug(`Using env var: ${envServiceName}_DATA -> ${dataPath}`)
+          logger.debug(`Using env var: ${envServiceName}_DATA -> ${dataPath}`)
           envVars[`${envServiceName}_DATA`] = dataPath
         }
       } else {
-        core.debug(`No custom data at startup used for service=${serviceName}`)
+        logger.debug(
+          `No custom data at startup used for service=${serviceName}`
+        )
       }
     }
   } else {
-    core.debug(`No services defined`)
+    logger.debug(`No services defined`)
   }
   return { serviceNames, envVars }
 }
@@ -107,7 +108,7 @@ function extractServiceFromGeneration(
 ) {
   if (generationTaskToServiceMapping[sptRelationship[0]] !== undefined) {
     const service = generationTaskToServiceMapping[sptRelationship[0]]
-    core.debug(`Found corresponding generation task, service=${service}`)
+    logger.debug(`Found corresponding generation task, service=${service}`)
     return service
   } else {
     throw new Error(
@@ -118,11 +119,11 @@ function extractServiceFromGeneration(
 
 function writeToFile(folder, fileName, content, isPlanText) {
   if (!fs.existsSync(folder)) {
-    core.debug(`Creating folder since it does not exist, folder=${folder}`)
+    logger.debug(`Creating folder since it does not exist, folder=${folder}`)
     fs.mkdirSync(folder, { recursive: true })
   }
   const fileContent = isPlanText ? content : yaml.dump(content)
-  core.debug(`Creating file, file-path=${folder}/${fileName}`)
+  logger.debug(`Creating file, file-path=${folder}/${fileName}`)
   fs.writeFileSync(`${folder}/${fileName}`, fileContent, err => {
     if (err) {
       throw err
@@ -137,7 +138,7 @@ function extractDataGenerationTasks(
   generationTaskToServiceMapping
 ) {
   if (testConfig.generation) {
-    core.debug('Checking for data generation configurations')
+    logger.debug('Checking for data generation configurations')
     for (const dataSourceGeneration of Object.entries(testConfig.generation)) {
       const task = baseTask()
       for (const generationTask of dataSourceGeneration[1]) {
@@ -169,7 +170,7 @@ function extractDataGenerationTasks(
       })
     }
   } else {
-    core.debug('No data generation tasks defined')
+    logger.debug('No data generation tasks defined')
   }
 }
 
@@ -179,7 +180,7 @@ function extractRelationships(
   currentPlan
 ) {
   if (testConfig.relationship) {
-    core.debug('Checking for data generation relationship configurations')
+    logger.debug('Checking for data generation relationship configurations')
     for (const rel of Object.entries(testConfig.relationship)) {
       // Find the corresponding service name from generation tasks
       // Also, validate that a generation task exists if relationship is defined
@@ -218,12 +219,12 @@ function extractRelationships(
       }
     }
   } else {
-    core.debug('No relationships defined')
+    logger.debug('No relationships defined')
   }
 }
 
 function extractDataValidations(testConfig, appIndex, currValidations) {
-  core.debug('Checking for data validation configurations')
+  logger.debug('Checking for data validation configurations')
   if (testConfig.validation) {
     for (const valid of Object.entries(testConfig.validation)) {
       const currService = valid[0]
@@ -241,7 +242,7 @@ function extractDataValidations(testConfig, appIndex, currValidations) {
       currValidations.dataSources[currService] = dataSourceValidations
     }
   } else {
-    core.debug('No data validations defined')
+    logger.debug('No data validations defined')
   }
 }
 
@@ -254,9 +255,10 @@ function runDataCaterer(
   appIndex,
   configurationFolder,
   sharedFolder,
+  dataCatererVersion,
   dockerToken
 ) {
-  core.info('Running data caterer for data generation and validation')
+  logger.info('Reading data generation and validation configurations')
   // Use template plan and task YAML files
   // Also, template application.conf
   const currentPlan = basePlan()
@@ -296,10 +298,12 @@ function runDataCaterer(
     configurationFolder,
     'my-plan.yaml',
     dataCatererEnv,
+    testConfig.mount,
     appIndex
   )
 
   removeContainer(`data-caterer-${appIndex}`)
+  logger.info('Starting to run data generation and validation')
   runDockerImage(dockerRunCommand, appIndex)
 }
 
@@ -308,12 +312,12 @@ async function cleanAppDoneFiles(parsedConfig, sharedFolder) {
   await new Promise(resolve => {
     setTimeout(resolve, 4000)
   })
-  core.debug('Removing files relating to notifying the application is done')
+  logger.debug('Removing files relating to notifying the application is done')
   for (const [i] of parsedConfig.run.entries()) {
     try {
       fs.unlinkSync(`${sharedFolder}/app-${i}-done`)
     } catch (error) {
-      core.warning(error)
+      logger.warn(error)
     }
   }
 }
@@ -322,8 +326,8 @@ async function checkExistsWithTimeout(filePath, appIndex, timeout = 60000) {
   await new Promise(function (resolve, reject) {
     const timer = setTimeout(function () {
       watcher.close()
-      core.info('Checking data-caterer logs')
-      core.info(execSync(`docker logs data-caterer-${appIndex}`).toString())
+      logger.info('Checking data-caterer logs')
+      logger.info(execSync(`docker logs data-caterer-${appIndex}`).toString())
       reject(
         new Error(
           `File did not exist and was not created during the timeout, file=${filePath}`
@@ -361,21 +365,21 @@ async function waitForDataGeneration(testConfig, sharedFolder, appIndex) {
     testConfig.generation &&
     Object.entries(testConfig.generation).length > 0
   ) {
-    core.info('Waiting for data generation to be completed')
+    logger.info('Waiting for data generation to be completed')
     const notifyFilePath = `${sharedFolder}/notify/data-gen-done`
     fs.mkdirSync(`${sharedFolder}/notify`, { recursive: true })
     await checkExistsWithTimeout(notifyFilePath, appIndex)
-    core.debug('Removing data generation done folder')
+    logger.debug('Removing data generation done folder')
     try {
       fs.rmSync(notifyFilePath, {
         recursive: true,
         force: true
       })
     } catch (error) {
-      core.warning(error)
+      logger.warn(error)
     }
   } else {
-    core.debug(
+    logger.debug(
       'No data generation defined, not waiting for data generation to be completed'
     )
   }
@@ -384,61 +388,79 @@ async function waitForDataGeneration(testConfig, sharedFolder, appIndex) {
 function setEnvironmentVariables(runConf) {
   if (runConf.env) {
     for (const env of Object.entries(runConf.env)) {
-      core.debug(
+      logger.debug(
         `Setting environment variable for application/job run, key=${env[0]}`
       )
       process.env[env[0]] = env[1]
     }
   } else {
-    core.debug('No environment variables set')
+    logger.debug('No environment variables set')
   }
 }
 
-function runApplication(runConf, configFileDirectory, appIndex) {
-  core.info('Running application/job')
+async function runApplication(
+  runConf,
+  configFolder,
+  baseFolder,
+  appIndex,
+  waitForFinish
+) {
+  logger.info('Running application/job')
   setEnvironmentVariables(runConf)
-  fs.mkdirSync(`${configFileDirectory}/logs`)
+  const logsFolder = `${baseFolder}/logs`
+  if (!fs.existsSync(logsFolder)) {
+    fs.mkdirSync(logsFolder)
+  }
   try {
     const logStream = fs.createWriteStream(
-      `${configFileDirectory}/logs/app_output_${appIndex}.log`,
+      `${logsFolder}/app_output_${appIndex}.log`,
       { flags: 'w+' }
     )
     // Run in the background
     const runApp = spawn(runConf.command, [], {
-      cwd: configFileDirectory,
+      cwd: configFolder,
       shell: true
     })
     runApp.stdout.pipe(logStream)
     runApp.stderr.pipe(logStream)
-    runApp.on('close', function (code) {
-      core.debug(`Application ${appIndex} exited with code ${code}`)
-    })
+
+    if (waitForFinish) {
+      await new Promise(resolve => {
+        runApp.on('close', function (code) {
+          logger.debug(`Application ${appIndex} exited with code ${code}`)
+          resolve()
+        })
+      })
+    }
     runApp.on('error', function (err) {
-      core.error(`Application ${appIndex} failed with error`)
-      core.error(err)
+      logger.error(`Application ${appIndex} failed with error`)
+      logger.error(err)
+      throw new Error(err)
     })
     return { runApp, logStream }
   } catch (error) {
-    core.error(`Failed to run application/job, command=${runConf.command}`)
+    logger.error(`Failed to run application/job, command=${runConf.command}`)
     throw new Error(error)
   }
 }
 
 function shutdownApplication(applicationProcess) {
-  core.debug('Attempting to close log stream')
+  logger.debug('Attempting to close log stream')
   applicationProcess.logStream.close()
-  core.debug(`Attempting to shut down application`)
+  logger.debug(`Attempting to shut down application`)
   if (applicationProcess && applicationProcess.runApp) {
     applicationProcess.runApp.kill()
   } else {
-    core.debug(`Application already stopped`)
+    logger.debug(`Application already stopped`)
   }
 }
 
 function createFolders(configurationFolder, sharedFolder, testResultsFolder) {
-  core.debug(`Using data caterer configuration folder: ${configurationFolder}`)
-  core.debug(`Using shared folder: ${sharedFolder}`)
-  core.debug(`Using test results folder: ${testResultsFolder}`)
+  logger.debug(
+    `Using data caterer configuration folder: ${configurationFolder}`
+  )
+  logger.debug(`Using shared folder: ${sharedFolder}`)
+  logger.debug(`Using test results folder: ${testResultsFolder}`)
   fs.mkdirSync(configurationFolder, { recursive: true })
   fs.mkdirSync(sharedFolder, { recursive: true })
   fs.mkdirSync(testResultsFolder, { recursive: true })
@@ -448,6 +470,7 @@ async function runTests(
   parsedConfig,
   configFileDirectory,
   baseFolder,
+  dataCatererVersion,
   dockerToken
 ) {
   const configurationFolder = `${baseFolder}/conf`
@@ -460,6 +483,7 @@ async function runTests(
   setEnvironmentVariables(parsedConfig)
 
   if (parsedConfig.run) {
+    await cleanAppDoneFiles(parsedConfig, sharedFolder)
     for (const [i, runConf] of parsedConfig.run.entries()) {
       // Need to know whether to run application first or data generation
       // For example, REST API application should run first then data generation
@@ -488,19 +512,32 @@ async function runTests(
           i,
           configurationFolder,
           sharedFolder,
+          dataCatererVersion,
           dockerToken
         )
         await waitForDataGeneration(runConf.test, sharedFolder, i)
-        applicationProcess = runApplication(runConf, configFileDirectory, i)
+        applicationProcess = await runApplication(
+          runConf,
+          configFileDirectory,
+          baseFolder,
+          i,
+          true
+        )
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
       } else {
-        applicationProcess = runApplication(runConf, configFileDirectory, i)
+        applicationProcess = await runApplication(
+          runConf,
+          configFileDirectory,
+          baseFolder,
+          i
+        )
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
         runDataCaterer(
           runConf.test,
           i,
           configurationFolder,
           sharedFolder,
+          dataCatererVersion,
           dockerToken
         )
       }
@@ -512,7 +549,7 @@ async function runTests(
         // Move results to separate file
         fs.renameSync(testResultsFile, `${testResultsFolder}/results-${i}.json`)
       } else {
-        core.warning(
+        logger.warn(
           `Test result file does not exist, unable to show test results, file=${testResultsFile}`
         )
       }
@@ -543,18 +580,18 @@ function showTestResultSummary(testResults) {
         numFailedValidations +=
           validation.numValidations - validation.numSuccess
         if (validation.errorValidations) {
-          core.info('Failed validation details')
+          logger.info('Failed validation details')
           for (const errorValidation of validation.errorValidations) {
             const baseLog = `Failed validation: validation=${JSON.stringify(errorValidation.validation)}, num-errors=${errorValidation.numErrors}`
             if (
               errorValidation.sampleErrorValues &&
               Object.entries(errorValidation.sampleErrorValues).length > 0
             ) {
-              core.info(
+              logger.info(
                 `${baseLog}, sample-error-value=${JSON.stringify(errorValidation.sampleErrorValues[0])}`
               )
             } else {
-              core.info(baseLog)
+              logger.info(baseLog)
             }
           }
         }
@@ -562,18 +599,20 @@ function showTestResultSummary(testResults) {
     }
   }
   const validationSuccessRate = numSuccessValidations / numValidations
-  core.info('Test result summary')
-  core.info(`Number of records generation: ${numRecordsGenerated}`)
-  core.info(`Number of successful validations: ${numSuccessValidations}`)
-  core.info(`Number of failed validations: ${numFailedValidations}`)
-  core.info(`Number of validations: ${numValidations}`)
-  core.info(`Validation success rate: ${validationSuccessRate * 100}%`)
-  core.setOutput('num_records_generated', numRecordsGenerated)
-  core.setOutput('num_success_validations', numSuccessValidations)
-  core.setOutput('num_failed_validations', numFailedValidations)
-  core.setOutput('num_validations', numValidations)
-  core.setOutput('validation_success_rate', validationSuccessRate)
-  core.setOutput('full_results', testResults)
+  logger.info('Test result summary')
+  logger.info(`Number of records generation: ${numRecordsGenerated}`)
+  logger.info(`Number of successful validations: ${numSuccessValidations}`)
+  logger.info(`Number of failed validations: ${numFailedValidations}`)
+  logger.info(`Number of validations: ${numValidations}`)
+  logger.info(`Validation success rate: ${validationSuccessRate * 100}%`)
+  if (process.env.GITHUB_ACTION) {
+    core.setOutput('num_records_generated', numRecordsGenerated)
+    core.setOutput('num_success_validations', numSuccessValidations)
+    core.setOutput('num_failed_validations', numFailedValidations)
+    core.setOutput('num_validations', numValidations)
+    core.setOutput('validation_success_rate', validationSuccessRate)
+    core.setOutput('full_results', testResults)
+  }
 }
 
 /**
@@ -584,26 +623,20 @@ function showTestResultSummary(testResults) {
  * - Setup data-caterer configuration for data generation and validation
  * - Run data-caterer
  * - Return back summarised results
- * @param applicationConfig Base configuration file defining requirements for integration tests
- * @param instaInfraFolder  Folder where insta-infra is checked out
- * @param baseFolder Folder where execution files get saved
- * @param dockerToken Token for logging in to Docker registry
+ * @param config Base configuration with config file path, insta-infra folder, execution folder, and docker token
  * @returns {string}  Results of data-caterer
  */
-async function runIntegrationTests(
-  applicationConfig,
-  instaInfraFolder,
-  baseFolder,
-  dockerToken
-) {
-  if (instaInfraFolder.includes(' ')) {
-    throw new Error(`Invalid insta-infra folder pathway=${instaInfraFolder}`)
+async function runIntegrationTests(config) {
+  if (config.instaInfraFolder.includes(' ')) {
+    throw new Error(
+      `Invalid insta-infra folder pathway=${config.instaInfraFolder}`
+    )
   }
-  const parsedConfig = parseConfigFile(applicationConfig)
-  const applicationConfigDirectory = applicationConfig.startsWith('/')
-    ? dirname(applicationConfig)
-    : `${process.cwd()}/${dirname(applicationConfig)}`
-  checkInstaInfraExists(instaInfraFolder)
+  const parsedConfig = parseConfigFile(config.applicationConfig)
+  const applicationConfigDirectory = config.applicationConfig.startsWith('/')
+    ? dirname(config.applicationConfig)
+    : `${process.cwd()}/${dirname(config.applicationConfig)}`
+  checkInstaInfraExists(config.instaInfraFolder)
 
   const { serviceNames, envVars } = extractServiceNamesAndEnv(
     parsedConfig,
@@ -611,17 +644,18 @@ async function runIntegrationTests(
   )
 
   if (serviceNames.length > 0) {
-    runServices(instaInfraFolder, serviceNames, envVars)
+    runServices(config.instaInfraFolder, serviceNames, envVars)
   }
 
   const testResults = await runTests(
     parsedConfig,
     applicationConfigDirectory,
-    baseFolder,
-    dockerToken
+    config.baseFolder,
+    config.dataCatererVersion,
+    config.dockerToken
   )
 
-  core.info('Finished tests!')
+  logger.info('Finished tests!')
   showTestResultSummary(testResults)
 
   return testResults

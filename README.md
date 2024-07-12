@@ -27,10 +27,11 @@ It is the closest you get to simulating production. This involves:
 
 ### CLI
 
-1. Install `insta-integration` via `npm install insta-integration`
+1. Install `insta-integration` via `npm i insta-integration`
 1. Create YAML file `insta-integration.yaml` to define your integration tests
 
    1. [Examples can be found here.](example)
+   1. [Use JSON schema to help guide you on available options](#json-schema-for-insta-integrationyaml)
 
 1. Run `insta-integration`
 
@@ -56,6 +57,7 @@ It is the closest you get to simulating production. This involves:
 1. Create YAML file `insta-integration.yaml` to define your integration tests
 
    1. [Examples can be found here.](example)
+   1. [Use JSON schema to help guide you on available options](#json-schema-for-insta-integrationyaml)
 
 1. Push your code and the GitHub Action will run
 
@@ -75,11 +77,12 @@ available.
 Optional configurations to alter the files and folders used by the GitHub Action
 can be found below.
 
-| Name               | Description                                                                                  | Default                        |
-| ------------------ | -------------------------------------------------------------------------------------------- | ------------------------------ |
-| configuration_file | File path to configuration file                                                              | `insta-integration.yaml`       |
-| insta_infra_folder | Folder path to insta-infra ([this repository](https://github.com/data-catering/insta-infra)) | `integration-test/insta-infra` |
-| base_folder        | Folder path to use for execution files                                                       | `/tmp/insta-integration`       |
+| Name                 | Description                                                                                  | Default                        |
+| -------------------- | -------------------------------------------------------------------------------------------- | ------------------------------ |
+| configuration_file   | File path to configuration file                                                              | `insta-integration.yaml`       |
+| insta_infra_folder   | Folder path to insta-infra ([this repository](https://github.com/data-catering/insta-infra)) | `integration-test/insta-infra` |
+| base_folder          | Folder path to use for execution files                                                       | `/tmp/insta-integration`       |
+| data_caterer_version | Version of data-caterer Docker image                                                         | `0.11.8`                       |
 
 To use these configurations, alter your
 `.github/workflows/integration-test.yaml`.
