@@ -400,7 +400,7 @@ function runApplication(runConf, configFileDirectory, appIndex) {
   try {
     const logStream = fs.createWriteStream(
       `${process.cwd()}/logs/app_output_${appIndex}.log`,
-      { flags: 'w' }
+      { flags: 'w+' }
     )
     // Run in the background
     const runApp = spawn(runConf.command, [], {
