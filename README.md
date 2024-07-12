@@ -138,7 +138,7 @@ help guide users on what is possible in the `insta-integration.yaml`. The links
 below show how you can import the schema in your favourite IDE:
 
 - [IntelliJ](https://www.jetbrains.com/help/idea/json.html#ws_json_schema_add_custom)
-- [VS Code](https://code.visualstudio.com/docs/languages/json#_json-schemas-and-settings)
+- [Visual Studio Code](https://code.visualstudio.com/docs/languages/json#_json-schemas-and-settings)
 
 ### Example Flows
 
