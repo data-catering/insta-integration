@@ -7351,9 +7351,6 @@ async function runTests(
           `Test result file does not exist, unable to show test results, file=${testResultsFile}`
         )
       }
-      // Wait for generation and validation results file
-      core.info('Waiting for data validation results')
-      await checkExistsWithTimeout(testResultsFile, i)
       shutdownApplication(applicationProcess)
     }
     await cleanAppDoneFiles(parsedConfig, sharedFolder)
