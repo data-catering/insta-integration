@@ -397,9 +397,10 @@ function setEnvironmentVariables(runConf) {
 function runApplication(runConf, configFileDirectory, appIndex) {
   core.info('Running application/job')
   setEnvironmentVariables(runConf)
+  fs.mkdirSync(`${configFileDirectory}/logs`)
   try {
     const logStream = fs.createWriteStream(
-      `${process.cwd()}/logs/app_output_${appIndex}.log`,
+      `${configFileDirectory}/logs/app_output_${appIndex}.log`,
       { flags: 'w+' }
     )
     // Run in the background
