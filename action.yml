@@ -51,6 +51,7 @@ runs:
       uses: 'actions/checkout@v4'
       with:
         repository: 'data-catering/insta-integration'
+        path: 'insta-integration'
     - name: 'Checkout insta-infra repo'
       uses: 'actions/checkout@v4'
       with:
@@ -69,10 +70,10 @@ runs:
         node-version: '20.x'
     - name: 'Run integration tests'
       shell: 'bash'
-      run: 'node ./dist/index.js'
+      run: 'node ./insta-integration/dist/index.js'
       id: 'insta-integration'
       env:
-        CONFIGURATION_FILE: '${{ inputs.configuration_file }}'
-        INSTA_INFRA_FOLDER: '${{ inputs.insta_infra_folder }}'
+        CONFIGURATION_FILE: '/home/runner/work/${{ github.repository }}/${{ inputs.configuration_file }}'
+        INSTA_INFRA_FOLDER: '/home/runner/work/${{ github.repository }}/${{ inputs.insta_infra_folder }}'
         BASE_FOLDER: '/home/runner/work/${{ github.repository }}'
         DATA_CATERER_VERSION: '${{ inputs.data_caterer_version }}'
