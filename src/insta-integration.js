@@ -399,7 +399,7 @@ function runApplication(runConf, configFileDirectory, appIndex) {
   setEnvironmentVariables(runConf)
   try {
     const logStream = fs.createWriteStream(
-      `./logs/app_output_${appIndex}.log`,
+      `${process.cwd()}/logs/app_output_${appIndex}.log`,
       { flags: 'w' }
     )
     // Run in the background
