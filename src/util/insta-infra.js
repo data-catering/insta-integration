@@ -1,6 +1,7 @@
 const fs = require('fs')
 const { execSync } = require('child_process')
 const logger = require('./log')
+const { isContainerFinished } = require('./docker')
 
 function checkInstaInfraExists(instaInfraFolder) {
   if (!fs.existsSync(instaInfraFolder)) {
@@ -36,17 +37,24 @@ function checkInstaInfraExists(instaInfraFolder) {
  */
 function checkValidServiceNames(instaInfraFolder, serviceNames) {
   logger.debug('Checking insta-infra to see what services are supported')
-  const supportedServices = execSync(`${instaInfraFolder}/run.sh -l`, {
-    encoding: 'utf-8'
-  })
-  // eslint-disable-next-line github/array-foreach
-  serviceNames.forEach(service => {
-    if (!supportedServices.includes(service)) {
-      throw new Error(
-        `Found unsupported insta-infra service in configuration, service=${service}`
-      )
-    }
-  })
+  try {
+    const supportedServices = execSync(`${instaInfraFolder}/run.sh -l`, {
+      encoding: 'utf-8'
+    })
+    // eslint-disable-next-line github/array-foreach
+    serviceNames.forEach(service => {
+      if (!supportedServices.includes(service)) {
+        throw new Error(
+          `Found unsupported insta-infra service in configuration, service=${service}`
+        )
+      }
+    })
+  } catch (error) {
+    logger.error(
+      `Failed to check if services are supported by insta-infra, services=${serviceNames}`
+    )
+    throw new Error(error)
+  }
 }
 
 function runServices(instaInfraFolder, serviceNames, envVars) {
@@ -56,10 +64,20 @@ function runServices(instaInfraFolder, serviceNames, envVars) {
   for (const env of Object.entries(envVars)) {
     process.env[env[0]] = env[1]
   }
-  execSync(`./run.sh ${serviceNamesInstaInfra}`, {
-    cwd: instaInfraFolder,
-    stdio: 'pipe'
-  })
+  try {
+    execSync(`./run.sh ${serviceNamesInstaInfra}`, {
+      cwd: instaInfraFolder,
+      stdio: 'pipe'
+    })
+  } catch (error) {
+    logger.error(`Failed to run services=${serviceNamesInstaInfra}`)
+    // eslint-disable-next-line github/array-foreach
+    serviceNames.forEach(serviceName => {
+      logger.debug(`Checking if service is unhealthy, service=${serviceName}`)
+      isContainerFinished(serviceName)
+      throw new Error(error)
+    })
+  }
 }
 
 module.exports = { checkInstaInfraExists, runServices }

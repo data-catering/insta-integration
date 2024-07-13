@@ -103,5 +103,6 @@ module.exports = {
   createDockerNetwork,
   removeContainer,
   dockerLogin,
-  waitForContainerToFinish
+  waitForContainerToFinish,
+  isContainerFinished
 }
