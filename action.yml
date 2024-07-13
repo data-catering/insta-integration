@@ -65,7 +65,9 @@ runs:
       run: 'node ${{github.action_path}}/dist/index.js'
       id: 'insta-integration'
       env:
-        CONFIGURATION_FILE: '${{ github.workspace }}/${{ inputs.configuration_file }}'
-        INSTA_INFRA_FOLDER: '${{ github.workspace }}/${{ inputs.insta_infra_folder }}'
+        CONFIGURATION_FILE:
+          '${{ github.workspace }}/${{ inputs.configuration_file }}'
+        INSTA_INFRA_FOLDER:
+          '${{ github.workspace }}/${{ inputs.insta_infra_folder }}'
         BASE_FOLDER: '${{ github.workspace }}'
         DATA_CATERER_VERSION: '${{ inputs.data_caterer_version }}'
