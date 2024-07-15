@@ -398,6 +398,15 @@ function setEnvironmentVariables(runConf) {
   }
 }
 
+function showLogFileContent(logFile) {
+  logger.debug(`Showing application logs`)
+  const logFileContent = fs.readFileSync(logFile).toString()
+  // eslint-disable-next-line github/array-foreach
+  logFileContent.split('\n').forEach(logLine => {
+    logger.debug(logLine)
+  })
+}
+
 async function runApplication(
   runConf,
   configFolder,
@@ -430,20 +439,21 @@ async function runApplication(
       await new Promise(resolve => {
         runApp.on('close', function (code) {
           logger.info(`Application ${appIndex} exited with code ${code}`)
-          logger.debug(fs.readFileSync(logFile).toString())
+          showLogFileContent(logFile)
           resolve()
         })
       })
     } else {
       runApp.on('close', function (code) {
         logger.info(`Application ${appIndex} exited with code ${code}`)
-        logger.debug(fs.readFileSync(logFile).toString())
+        showLogFileContent(logFile)
       })
     }
+
     runApp.on('error', function (err) {
       logger.error(`Application ${appIndex} failed with error`)
       logger.error(err)
-      logger.debug(fs.readFileSync(logFile).toString())
+      showLogFileContent(logFile)
       throw new Error(err)
     })
     return { runApp, logStream }
