@@ -521,7 +521,7 @@ async function runTests(
           configFileDirectory,
           baseFolder,
           i,
-          true
+          runConf.commandWaitForFinish
         )
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
       } else {
@@ -529,7 +529,8 @@ async function runTests(
           runConf,
           configFileDirectory,
           baseFolder,
-          i
+          i,
+          runConf.commandWaitForFinish
         )
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
         runDataCaterer(
