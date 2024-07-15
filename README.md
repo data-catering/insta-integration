@@ -52,12 +52,50 @@ Problems it can help with:
 
 ### Generation and Validation
 
-Since it uses [data-caterer](https://data.catering/) behind the scenes to help with data generation and
-validation, check the following pages for discovering what options are
-available.
+Since it uses [data-caterer](https://data.catering/) behind the scenes to help
+with data generation and validation, check the following pages for discovering
+what options are available.
 
 - [Data Generation](https://data.catering/setup/generator/data-generator/)
 - [Data Validation](https://data.catering/setup/validation/)
+
+#### Data Sources
+
+The following data sources are available to generate/validate data.
+
+| Data Source Type | Data Source                        | Support | Free |
+| ---------------- |------------------------------------| ------- | ---- |
+| Cloud Storage    | AWS S3                             | ✅      | ✅   |
+| Cloud Storage    | Azure Blob Storage                 | ✅      | ✅   |
+| Cloud Storage    | GCP Cloud Storage                  | ✅      | ✅   |
+| Database         | Cassandra                          | ✅      | ✅   |
+| Database         | MySQL                              | ✅      | ✅   |
+| Database         | Postgres                           | ✅      | ✅   |
+| Database         | Elasticsearch                      | ❌      | ✅   |
+| Database         | MongoDB                            | ❌      | ✅   |
+| Database         | Opensearch                         | ❌      | ✅   |
+| File             | CSV                                | ✅      | ✅   |
+| File             | Delta Lake                         | ✅      | ✅   |
+| File             | JSON                               | ✅      | ✅   |
+| File             | Iceberg                            | ✅      | ✅   |
+| File             | ORC                                | ✅      | ✅   |
+| File             | Parquet                            | ✅      | ✅   |
+| File             | Hudi                               | ❌      | ✅   |
+| HTTP             | REST API                           | ✅      | ❌   |
+| Messaging        | Kafka                              | ✅      | ❌   |
+| Messaging        | Solace                             | ✅      | ❌   |
+| Messaging        | ActiveMQ                           | ❌      | ❌   |
+| Messaging        | Pulsar                             | ❌      | ❌   |
+| Messaging        | RabbitMQ                           | ❌      | ❌   |
+| Metadata         | Great Expectations                 | ✅      | ❌   |
+| Metadata         | Marquez                            | ✅      | ❌   |
+| Metadata         | OpenAPI/Swagger                    | ✅      | ❌   |
+| Metadata         | OpenMetadata                       | ✅      | ❌   |
+| Metadata         | Open Data Contract Standard (ODCS) | ✅      | ❌   |
+| Metadata         | Amundsen                           | ❌      | ❌   |
+| Metadata         | Datahub                            | ❌      | ❌   |
+| Metadata         | Data Contract CLI                  | ❌      | ❌   |
+| Metadata         | Solace Event Portal                | ❌      | ❌   |
 
 ### GitHub Action Options
 
@@ -66,12 +104,12 @@ available.
 Optional configurations to alter the files and folders used by the GitHub Action
 can be found below.
 
-| Name                 | Description                                                                                  | Default                                      |
-| -------------------- | -------------------------------------------------------------------------------------------- |----------------------------------------------|
-| configuration_file   | File path to configuration file                                                              | `insta-integration.yaml`                     |
-| insta_infra_folder   | Folder path to insta-infra ([this repository](https://github.com/data-catering/insta-infra)) | `${HOME}/.insta-integration/insta-infra`     |
-| base_folder          | Folder path to use for execution files                                                       | `${HOME}/.insta-integration`                 |
-| data_caterer_version | Version of data-caterer Docker image                                                         | `0.11.8`                                     |
+| Name                 | Description                                                                                  | Default                                  |
+| -------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| configuration_file   | File path to configuration file                                                              | `insta-integration.yaml`                 |
+| insta_infra_folder   | Folder path to insta-infra ([this repository](https://github.com/data-catering/insta-infra)) | `${HOME}/.insta-integration/insta-infra` |
+| base_folder          | Folder path to use for execution files                                                       | `${HOME}/.insta-integration`             |
+| data_caterer_version | Version of data-caterer Docker image                                                         | `0.11.8`                                 |
 
 To use these configurations, alter your
 `.github/workflows/integration-test.yaml`.
@@ -99,7 +137,7 @@ If you want to use the output of the GitHub Action, the following attributes are
 available:
 
 | Name                    | Description                                                  |
-| ----------------------- |--------------------------------------------------------------|
+| ----------------------- | ------------------------------------------------------------ |
 | num_records_generated   | Total number of records generated.                           |
 | num_success_validations | Total number of successful validations.                      |
 | num_failed_validations  | Total number of failed validations.                          |
