@@ -1,13 +1,10 @@
 # insta-integration - Integration Testing
 
-[![GitHub Super-Linter](https://github.com/actions/insta-integration/actions/workflows/linter.yml/badge.svg)](https://github.com/super-linter/super-linter)
-![CI](https://github.com/actions/insta-integration/actions/workflows/ci.yml/badge.svg)
-
-Automated integration tests for any application or job.
+Automated integration tests for any application/job.
 
 - Spin up any external services
 - Generate production-like data
-- Run data validations to ensure application or job works as expected
+- Run data validations to ensure application/job works as expected
 
 Problems it can help with:
 
@@ -15,19 +12,11 @@ Problems it can help with:
 - Dependencies on other teams
 - Simulate complex data flows
 
-## Why Integration Test?
-
-It is the closest you get to simulating production. This involves:
-
-- Test your application/job end-to-end
-- Connect to data sources
-- Production-like data processed
-
 ## Usage
 
 ### CLI
 
-1. Install `insta-integration` via `npm i insta-integration`
+1. Install via `npm i insta-integration`
 1. Create YAML file `insta-integration.yaml` to define your integration tests
 
    1. [Examples can be found here.](example)
@@ -63,7 +52,7 @@ It is the closest you get to simulating production. This involves:
 
 ### Generation and Validation
 
-Since it uses data-caterer behind the scenes to help with data generation and
+Since it uses [data-caterer](https://data.catering/) behind the scenes to help with data generation and
 validation, check the following pages for discovering what options are
 available.
 
@@ -77,12 +66,12 @@ available.
 Optional configurations to alter the files and folders used by the GitHub Action
 can be found below.
 
-| Name                 | Description                                                                                  | Default                        |
-| -------------------- | -------------------------------------------------------------------------------------------- | ------------------------------ |
-| configuration_file   | File path to configuration file                                                              | `insta-integration.yaml`       |
-| insta_infra_folder   | Folder path to insta-infra ([this repository](https://github.com/data-catering/insta-infra)) | `integration-test/insta-infra` |
-| base_folder          | Folder path to use for execution files                                                       | `/tmp/insta-integration`       |
-| data_caterer_version | Version of data-caterer Docker image                                                         | `0.11.8`                       |
+| Name                 | Description                                                                                  | Default                                      |
+| -------------------- | -------------------------------------------------------------------------------------------- |----------------------------------------------|
+| configuration_file   | File path to configuration file                                                              | `insta-integration.yaml`                     |
+| insta_infra_folder   | Folder path to insta-infra ([this repository](https://github.com/data-catering/insta-infra)) | `${HOME}/.insta-integration/insta-infra`     |
+| base_folder          | Folder path to use for execution files                                                       | `${HOME}/.insta-integration`                 |
+| data_caterer_version | Version of data-caterer Docker image                                                         | `0.11.8`                                     |
 
 To use these configurations, alter your
 `.github/workflows/integration-test.yaml`.
@@ -109,14 +98,14 @@ jobs:
 If you want to use the output of the GitHub Action, the following attributes are
 available:
 
-| Name                    | Description                                                 | Default |
-| ----------------------- | ----------------------------------------------------------- | ------- |
-| num_records_generated   | Total number of records generated.                          | 0       |
-| num_success_validations | Total number of successful validations.                     | 0       |
-| num_failed_validations  | Total number of failed validations.                         | 0       |
-| num_validations         | Total number of validations.                                | 0       |
-| validation_success_rate | Success rate of validations (i.e. 0.75 = 75% success rate). | 0       |
-| full_result             | All result details (data generation and validation).        | {}      |
+| Name                    | Description                                                  |
+| ----------------------- |--------------------------------------------------------------|
+| num_records_generated   | Total number of records generated.                           |
+| num_success_validations | Total number of successful validations.                      |
+| num_failed_validations  | Total number of failed validations.                          |
+| num_validations         | Total number of validations.                                 |
+| validation_success_rate | Success rate of validations (i.e. 0.75 = 75% success rate).  |
+| full_result             | All result details as JSON (data generation and validation). |
 
 For example, you can print out the results like below:
 
@@ -147,8 +136,10 @@ below show how you can import the schema in your favourite IDE:
 
 [Examples can be found here.](example)
 
-## Test Command Locally
+## Why Integration Test?
 
-```shell
-npm run local
-```
+It is the closest you get to simulating production. This involves:
+
+- Test your application/job end-to-end
+- Connect to data sources
+- Production-like data processed
