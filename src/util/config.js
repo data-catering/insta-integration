@@ -311,7 +311,7 @@ function createDataCatererDockerRunCommand(
   if (uid === 1001) {
     user = `--user ${uid}:${gid}`
   }
-  return `docker run -d -p 4040:4040 \
+  return `docker run -d \
   --network insta-infra_default \
   --name data-caterer-${appIndex} ${user} \
   -v ${confFolder}:/opt/app/custom \

@@ -425,11 +425,16 @@ async function runApplication(
     runApp.stderr.pipe(logStream)
 
     if (waitForFinish) {
+      logger.info('Waiting for command to finish')
       await new Promise(resolve => {
         runApp.on('close', function (code) {
-          logger.debug(`Application ${appIndex} exited with code ${code}`)
+          logger.info(`Application ${appIndex} exited with code ${code}`)
           resolve()
         })
+      })
+    } else {
+      runApp.on('close', function (code) {
+        logger.info(`Application ${appIndex} exited with code ${code}`)
       })
     }
     runApp.on('error', function (err) {
