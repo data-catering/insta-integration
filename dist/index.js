@@ -22049,10 +22049,8 @@ async function runApplication(
     fs.mkdirSync(logsFolder)
   }
   try {
-    const logStream = fs.createWriteStream(
-      `${logsFolder}/app_output_${appIndex}.log`,
-      { flags: 'w+' }
-    )
+    const logFile = `${logsFolder}/app_output_${appIndex}.log`
+    const logStream = fs.createWriteStream(logFile, { flags: 'w+' })
     // Run in the background
     const runApp = spawn(runConf.command, [], {
       cwd: configFolder,
@@ -22062,21 +22060,27 @@ async function runApplication(
     runApp.stderr.pipe(logStream)
 
     if (waitForFinish) {
-      logger.info('Waiting for command to finish')
+      logger.info({
+        message: 'Waiting for command to finish',
+        command: runConf.command
+      })
       await new Promise(resolve => {
         runApp.on('close', function (code) {
           logger.info(`Application ${appIndex} exited with code ${code}`)
+          logger.debug(fs.readFileSync(logFile).toString())
           resolve()
         })
       })
     } else {
       runApp.on('close', function (code) {
         logger.info(`Application ${appIndex} exited with code ${code}`)
+        logger.debug(fs.readFileSync(logFile).toString())
       })
     }
     runApp.on('error', function (err) {
       logger.error(`Application ${appIndex} failed with error`)
       logger.error(err)
+      logger.debug(fs.readFileSync(logFile).toString())
       throw new Error(err)
     })
     return { runApp, logStream }
