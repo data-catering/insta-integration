@@ -17,6 +17,10 @@ function getBaseFolder(baseFolder) {
     : `${resolve()}/${cleanFolderPath}`
 }
 
+function getDataCatererVersion(dataCatererVersion) {
+  return !dataCatererVersion ? '0.11.8' : dataCatererVersion
+}
+
 function getConfiguration() {
   let applicationConfig = process.env.CONFIGURATION_FILE
   let instaInfraFolder = process.env.INSTA_INFRA_FOLDER
@@ -38,7 +42,7 @@ function getConfiguration() {
     dataCatererVersion =
       core.getInput('data_caterer_version', {}).length > 0
         ? core.getInput('data_caterer_version', {})
-        : dataCatererVersion
+        : getDataCatererVersion(dataCatererVersion)
     dockerToken =
       core.getInput('docker_token', {}).length > 0
         ? core.getInput('docker_token', {})

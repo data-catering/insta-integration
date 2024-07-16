@@ -151,7 +151,40 @@ function extractDataGenerationTasks(
           currentPlan.tasks.push(nameWithDataSource)
         }
         task.name = taskName
-        task.steps.push(generationTask)
+        const mappedGenTask = Object.fromEntries(
+          Object.entries(generationTask).map(t => {
+            if (t[0] === 'schema') {
+              return [
+                t[0],
+                Object.fromEntries(
+                  (Object.entries(t[1]) || []).map(s => {
+                    if (s[0] === 'fields') {
+                      return [
+                        s[0],
+                        (s[1] || []).map(f => {
+                          return Object.fromEntries(
+                            Object.entries(f).map(fe => {
+                              if (fe[0] === 'options') {
+                                return ['generator', { options: fe[1] }]
+                              } else {
+                                return fe
+                              }
+                            })
+                          )
+                        })
+                      ]
+                    } else {
+                      return s
+                    }
+                  })
+                )
+              ]
+            } else {
+              return t
+            }
+          })
+        )
+        task.steps.push(mappedGenTask)
         generationTaskToServiceMapping[generationTask.name] =
           dataSourceGeneration[0]
       }

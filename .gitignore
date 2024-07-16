@@ -104,4 +104,4 @@ __tests__/runner/*
 
 docker
 insta-integration-docker
-insta-infra
+example/my-app/shared

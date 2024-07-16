@@ -221,212 +221,139 @@
                                 "type": {
                                   "type": "string",
                                   "description": "Data type of the field.",
-                                  "enum": [
-                                    "string",
-                                    "integer",
-                                    "long",
-                                    "double",
-                                    "short",
-                                    "decimal",
-                                    "float",
-                                    "date",
-                                    "timestamp",
-                                    "boolean",
-                                    "binary",
-                                    "byte",
-                                    "array",
-                                    "struct"
-                                  ]
+                                  "default": "string",
+                                  "$ref": "#/$defs/SchemaFieldDataTypes"
                                 },
-                                "generator": {
-                                  "type": "object",
-                                  "properties": {
-                                    "options": {
-                                      "type": "object",
-                                      "additionalProperties": {
-                                        "type": [
-                                          "string",
-                                          "boolean",
-                                          "integer",
-                                          "number"
-                                        ]
-                                      }
-                                    },
-                                    "additionalProperties": false
-                                  }
-                                },
-                                "additionalProperties": false
+                                "options": {
+                                  "description": "Metadata to define restrict the data generated.",
+                                  "type": "object"
+                                }
                               },
+                              "required": ["name"],
+                              "unevaluatedProperties": false,
                               "allOf": [
                                 {
                                   "if": {
+                                    "type": "object",
                                     "properties": {
                                       "type": {
                                         "const": "string"
                                       }
-                                    }
+                                    },
+                                    "required": ["type"]
                                   },
                                   "then": {
+                                    "type": "object",
                                     "properties": {
-                                      "generator": {
-                                        "properties": {
-                                          "options": {
-                                            "propertyNames": {
-                                              "enum": [
-                                                "enableEdgeCase",
-                                                "edgeCaseProb",
-                                                "isUnique",
-                                                "seed",
-                                                "sql",
-                                                "minLen",
-                                                "maxLen",
-                                                "expression",
-                                                "enableNull",
-                                                "nullProb"
-                                              ]
-                                            }
-                                          }
-                                        }
+                                      "options": {
+                                        "$ref": "#/$defs/SchemaStringOptions"
                                       }
                                     }
                                   }
                                 },
                                 {
                                   "if": {
+                                    "type": "object",
                                     "properties": {
                                       "type": {
-                                        "enum": [
-                                          "integer",
-                                          "long",
-                                          "short",
-                                          "decimal",
-                                          "double",
-                                          "float"
+                                        "anyOf": [
+                                          {
+                                            "const": "integer"
+                                          },
+                                          {
+                                            "const": "long"
+                                          },
+                                          {
+                                            "const": "short"
+                                          },
+                                          {
+                                            "const": "decimal"
+                                          },
+                                          {
+                                            "const": "double"
+                                          },
+                                          {
+                                            "const": "float"
+                                          }
                                         ]
                                       }
-                                    }
+                                    },
+                                    "required": ["type"]
                                   },
                                   "then": {
+                                    "type": "object",
                                     "properties": {
-                                      "generator": {
-                                        "properties": {
-                                          "options": {
-                                            "propertyNames": {
-                                              "enum": [
-                                                "enableEdgeCase",
-                                                "edgeCaseProb",
-                                                "isUnique",
-                                                "seed",
-                                                "sql",
-                                                "min",
-                                                "max",
-                                                "stddev",
-                                                "mean"
-                                              ]
-                                            }
-                                          }
-                                        }
+                                      "options": {
+                                        "$ref": "#/$defs/SchemaNumberOptions"
                                       }
                                     }
                                   }
                                 },
                                 {
                                   "if": {
+                                    "type": "object",
                                     "properties": {
                                       "type": {
-                                        "enum": ["date", "timestamp"]
+                                        "anyOf": [
+                                          {
+                                            "const": "date"
+                                          },
+                                          {
+                                            "const": "timestamp"
+                                          }
+                                        ]
                                       }
-                                    }
+                                    },
+                                    "required": ["type"]
                                   },
                                   "then": {
+                                    "type": "object",
                                     "properties": {
-                                      "generator": {
-                                        "properties": {
-                                          "options": {
-                                            "propertyNames": {
-                                              "enum": [
-                                                "enableEdgeCase",
-                                                "edgeCaseProb",
-                                                "isUnique",
-                                                "seed",
-                                                "sql",
-                                                "min",
-                                                "max",
-                                                "enableNull",
-                                                "nullProb"
-                                              ]
-                                            }
-                                          }
-                                        }
+                                      "options": {
+                                        "$ref": "#/$defs/SchemaDateOptions"
                                       }
                                     }
                                   }
                                 },
                                 {
                                   "if": {
+                                    "type": "object",
                                     "properties": {
                                       "type": {
-                                        "enum": ["binary"]
+                                        "const": "binary"
                                       }
-                                    }
+                                    },
+                                    "required": ["type"]
                                   },
                                   "then": {
+                                    "type": "object",
                                     "properties": {
-                                      "generator": {
-                                        "properties": {
-                                          "options": {
-                                            "propertyNames": {
-                                              "enum": [
-                                                "enableEdgeCase",
-                                                "edgeCaseProb",
-                                                "isUnique",
-                                                "seed",
-                                                "sql",
-                                                "minLen",
-                                                "maxLen",
-                                                "enableNull",
-                                                "nullProb"
-                                              ]
-                                            }
-                                          }
-                                        }
+                                      "options": {
+                                        "$ref": "#/$defs/SchemaBinaryOptions"
                                       }
                                     }
                                   }
                                 },
                                 {
                                   "if": {
+                                    "type": "object",
                                     "properties": {
                                       "type": {
-                                        "enum": ["array"]
+                                        "const": "array"
                                       }
-                                    }
+                                    },
+                                    "required": ["type"]
                                   },
                                   "then": {
+                                    "type": "object",
                                     "properties": {
-                                      "generator": {
-                                        "properties": {
-                                          "options": {
-                                            "propertyNames": {
-                                              "enum": [
-                                                "enableEdgeCase",
-                                                "edgeCaseProb",
-                                                "isUnique",
-                                                "seed",
-                                                "sql",
-                                                "arrayMinLen",
-                                                "arrayMaxLen",
-                                                "arrayType"
-                                              ]
-                                            }
-                                          }
-                                        }
+                                      "options": {
+                                        "$ref": "#/$defs/SchemaBinaryOptions"
                                       }
                                     }
                                   }
                                 }
-                              ],
-                              "required": ["name"]
+                              ]
                             }
                           }
                         },
@@ -445,12 +372,16 @@
                     },
                     "then": {
                       "additionalProperties": {
+                        "type": "array",
                         "items": {
+                          "type": "object",
                           "properties": {
                             "options": {
-                              "propertyNames": {
+                              "type": "object",
+                              "properties": {
                                 "dbtable": {
                                   "description": "Name of the schema and table to connect to (<schema>.<table> format).",
+                                  "type": "string",
                                   "pattern": "^(.+?)\\.(.+?)$"
                                 }
                               }
@@ -468,9 +399,12 @@
                     },
                     "then": {
                       "additionalProperties": {
+                        "type": "array",
                         "items": {
+                          "type": "object",
                           "properties": {
                             "options": {
+                              "type": "object",
                               "properties": {
                                 "keyspace": {
                                   "description": "Cassandra keyspace name."
@@ -493,9 +427,12 @@
                     },
                     "then": {
                       "additionalProperties": {
+                        "type": "array",
                         "items": {
+                          "type": "object",
                           "properties": {
                             "options": {
+                              "type": "object",
                               "properties": {
                                 "partitions": {
                                   "description": "Number of file partitions to create."
@@ -521,9 +458,12 @@
                     },
                     "then": {
                       "additionalProperties": {
+                        "type": "array",
                         "items": {
+                          "type": "object",
                           "properties": {
                             "options": {
+                              "type": "object",
                               "properties": {
                                 "catalogType": {
                                   "description": "Type of Iceberg catalog.",
@@ -560,9 +500,12 @@
                     },
                     "then": {
                       "additionalProperties": {
+                        "type": "array",
                         "items": {
+                          "type": "object",
                           "properties": {
                             "options": {
+                              "type": "object",
                               "properties": {
                                 "topic": {
                                   "description": "Topic name."
@@ -585,9 +528,12 @@
                     },
                     "then": {
                       "additionalProperties": {
+                        "type": "array",
                         "items": {
+                          "type": "object",
                           "properties": {
                             "options": {
+                              "type": "object",
                               "properties": {
                                 "destinationName": {
                                   "description": "Name of the topic/queue."
@@ -706,6 +652,212 @@
         "additionalProperties": false
       }
     },
+    "SchemaFieldDataTypes": {
+      "enum": [
+        "string",
+        "integer",
+        "long",
+        "double",
+        "short",
+        "decimal",
+        "float",
+        "date",
+        "timestamp",
+        "boolean",
+        "binary",
+        "byte",
+        "array",
+        "struct"
+      ]
+    },
+    "SchemaFieldBaseOptions": {
+      "type": "object",
+      "properties": {
+        "enabledEdgeCase": {
+          "type": "boolean",
+          "description": "Enable generating edge case values for data type.",
+          "default": false
+        },
+        "edgeCaseProb": {
+          "type": "number",
+          "description": "Probability of generating edge case values. Range from 0-1.",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0
+        },
+        "isUnique": {
+          "type": "boolean",
+          "description": "Generate only unique values.",
+          "default": false
+        },
+        "seed": {
+          "type": "number",
+          "description": "Seed for generating consistent random values.",
+          "default": -1
+        },
+        "sql": {
+          "type": "string",
+          "description": "Spark SQL expression for generating data."
+        },
+        "oneOf": {
+          "type": "array",
+          "description": "Generated values will be one of the defined values."
+        },
+        "omit": {
+          "type": "boolean",
+          "description": "Exclude the field from the final output. Can be used for intermediate data generation.",
+          "default": false
+        }
+      }
+    },
+    "SchemaNullOptions": {
+      "type": "object",
+      "properties": {
+        "enableNull": {
+          "type": "boolean",
+          "description": "Enable generation of null values.",
+          "default": false
+        },
+        "nullProbability": {
+          "type": "number",
+          "description": "Probability of generating null values. Range from 0-1.",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0
+        }
+      }
+    },
+    "SchemaStringOptions": {
+      "type": "object",
+      "properties": {
+        "minLen": {
+          "type": "integer",
+          "description": "Minimum length of generated values.",
+          "default": 1
+        },
+        "maxLen": {
+          "type": "integer",
+          "description": "Maximum length of generated values.",
+          "default": 10
+        },
+        "expression": {
+          "type": "string",
+          "description": "Faker expression to generate values.",
+          "examples": ["#{Name.name}"]
+        },
+        "regex": {
+          "type": "string",
+          "description": "Regex for generating values."
+        }
+      },
+      "allOf": [
+        {
+          "$ref": "#/$defs/SchemaFieldBaseOptions"
+        },
+        {
+          "$ref": "#/$defs/SchemaNullOptions"
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "SchemaNumberOptions": {
+      "type": "object",
+      "properties": {
+        "min": {
+          "type": "number",
+          "description": "Minimum generated value.",
+          "default": 0
+        },
+        "max": {
+          "type": "number",
+          "description": "Maximum generated value.",
+          "default": 1000
+        },
+        "stddev": {
+          "type": "number",
+          "description": "Standard deviation of generated values.",
+          "default": 1
+        },
+        "mean": {
+          "type": "number",
+          "description": "Mean of generated values.",
+          "default": 500
+        }
+      },
+      "$ref": "#/$defs/SchemaFieldBaseOptions",
+      "unevaluatedProperties": false
+    },
+    "SchemaDateOptions": {
+      "type": "object",
+      "properties": {
+        "min": {
+          "type": "string",
+          "description": "Maximum generated value."
+        },
+        "max": {
+          "type": "string",
+          "description": "Maximum generated value."
+        }
+      },
+      "allOf": [
+        {
+          "$ref": "#/$defs/SchemaFieldBaseOptions"
+        },
+        {
+          "$ref": "#/$defs/SchemaNullOptions"
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "SchemaBinaryOptions": {
+      "type": "object",
+      "properties": {
+        "minLen": {
+          "type": "number",
+          "description": "Minimum length of generated values."
+        },
+        "maxLen": {
+          "type": "number",
+          "description": "Maximum length of generated values."
+        }
+      },
+      "allOf": [
+        {
+          "$ref": "#/$defs/SchemaFieldBaseOptions"
+        },
+        {
+          "$ref": "#/$defs/SchemaNullOptions"
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "SchemaArrayOptions": {
+      "type": "object",
+      "properties": {
+        "arrayMinLen": {
+          "type": "number",
+          "description": "Minimum generated array length."
+        },
+        "arrayMaxLen": {
+          "type": "number",
+          "description": "Maximum generated array length."
+        },
+        "arrayType": {
+          "type": "string",
+          "description": "Data type of array values.",
+          "$ref": "#/$defs/SchemaFieldDataTypes"
+        }
+      },
+      "allOf": [
+        {
+          "$ref": "#/$defs/SchemaFieldBaseOptions"
+        },
+        {
+          "$ref": "#/$defs/SchemaNullOptions"
+        }
+      ],
+      "unevaluatedProperties": false
+    },
     "ValidationDescription": {
       "const": "description",
       "description": "Description of the validation rule. Helpful to provide additional context."
@@ -783,6 +935,7 @@
       "description": "Expected column names."
     },
     "BasicValidation": {
+      "type": "object",
       "propertyNames": {
         "anyOf": [
           {
@@ -804,6 +957,7 @@
       }
     },
     "AggregationValidation": {
+      "type": "object",
       "propertyNames": {
         "anyOf": [
           {
@@ -831,6 +985,7 @@
       }
     },
     "UpstreamValidation": {
+      "type": "object",
       "propertyNames": {
         "anyOf": [
           {
@@ -861,6 +1016,7 @@
       }
     },
     "ColumnNameValidation": {
+      "type": "object",
       "propertyNames": {
         "anyOf": [
           {

@@ -9,6 +9,11 @@ run:
             schema:
               fields:
                 - name: account_id
+                  type: string
+                  options:
+                    regex: abc123
+                - name: name
+                  type: string
       validation:
         parquet:
           - options:

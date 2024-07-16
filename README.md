@@ -16,7 +16,7 @@ Problems it can help with:
 
 ### CLI
 
-1. Install via `npm i insta-integration`
+1. Install via `npm install -g insta-integration`
 1. Create YAML file `insta-integration.yaml` to define your integration tests
 
    1. [Examples can be found here.](example)
@@ -64,7 +64,7 @@ what options are available.
 The following data sources are available to generate/validate data.
 
 | Data Source Type | Data Source                        | Support | Free |
-| ---------------- |------------------------------------| ------- | ---- |
+| ---------------- | ---------------------------------- | ------- | ---- |
 | Cloud Storage    | AWS S3                             | ✅      | ✅   |
 | Cloud Storage    | Azure Blob Storage                 | ✅      | ✅   |
 | Cloud Storage    | GCP Cloud Storage                  | ✅      | ✅   |
@@ -96,6 +96,81 @@ The following data sources are available to generate/validate data.
 | Metadata         | Datahub                            | ❌      | ❌   |
 | Metadata         | Data Contract CLI                  | ❌      | ❌   |
 | Metadata         | Solace Event Portal                | ❌      | ❌   |
+
+#### Full Example
+
+```yaml
+services:
+  - name: postgres #define external services
+    data: my-data/sql #initial service setup (i.e. schema/tables, topics, queues)
+run:
+  - command: ./my-app/run-postgres-extract-app.sh #how to run your application/job
+    env: #environment variables for your application/job
+      POSTGRES_URL: jdbc:postgresql://postgres:5432/docker
+    test:
+      env: #environment variables for data generation/validation
+        POSTGRES_URL: jdbc:postgresql://postgres:5432/docker
+      mount: #volume mount for data validation
+        - ${PWD}/example/my-app/shared/generated:/opt/app/shared/generated
+      relationship: #generate data with same values used across different data sources
+        postgres_balance.account_number: #ensure account_number in balance table exists when transaction created
+          - postgres_transaction.account_number
+      generation: #define data sources for data generation
+        postgres:
+          - name: postgres_transaction #give it a name to use in relationship definition
+            options: #configuration on specific data source
+              dbtable: account.transactions
+            count: #how many records to generate (1,000 by default)
+              perColumn: #generate 5 records per account_number
+                columnNames: [account_number]
+                count: 5
+            schema: #schema of the data source
+              fields:
+                - name: account_number
+                  type: string
+                - name: create_time
+                  type: timestamp
+                - name: transaction_id
+                  type: string
+                - name: amount
+                  type: double
+          - name: postgres_balance
+            options:
+              dbtable: account.balances
+            schema:
+              fields:
+                - name: account_number
+                  options: #additional metadata for data generation
+                    isUnique: true
+                    regex: ACC[0-9]{10}
+                - name: create_time
+                  type: timestamp
+                - name: account_status
+                  type: string
+                  options:
+                    oneOf: [open, closed]
+                - name: balance
+                  type: double
+      validation:
+        csv: #define data source for data validations
+          - options:
+              path: /opt/app/shared/generated/balances.csv
+              header: true
+            validations: #list of validation to run, can be basic SQL, aggregations, upstream data source or column name validations
+              - expr: ISNOTNULL(account_number)
+              - aggType: count
+                aggExpr: count == 1000
+          - options:
+              path: /opt/app/shared/generated/transactions.csv
+              header: true
+            validations:
+              - expr: ISNOTNULL(account_number)
+              - aggType: count
+                aggExpr: count == 5000
+              - groupByCols: [account_number]
+                aggType: count
+                aggExpr: count == 5
+```
 
 ### GitHub Action Options
 

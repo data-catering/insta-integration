@@ -1,7 +1,7 @@
 {
   "name": "insta-integration",
   "description": "insta-integration GitHub Action",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "author": "data-catering",
   "private": false,
   "bin": {
@@ -32,11 +32,11 @@
     "bundle": "npm run format:write && npm run package",
     "ci-test": "npx jest",
     "coverage": "npx make-coverage-badge --output-path ./badges/coverage.svg",
-    "docker": "DOCKER_TOKEN=abc123 CONFIGURATION_FILE=insta-integration.yaml INSTA_INFRA_FOLDER=../insta-infra BASE_FOLDER=${PWD}/docker node ./src/index",
     "format:write": "npx prettier --write .",
     "format:check": "npx prettier --check .",
     "lint": "npx eslint . -c ./.github/linters/.eslintrc.yml",
-    "local": "CONFIGURATION_FILE=example/postgres-to-csv.yaml INSTA_INFRA_FOLDER=../insta-infra BASE_FOLDER=${PWD}/docker node ./src/index",
+    "local": "CONFIGURATION_FILE=insta-integration.yaml INSTA_INFRA_FOLDER=../insta-infra BASE_FOLDER=${PWD}/docker node ./src/index",
+    "local-postgres": "CONFIGURATION_FILE=example/postgres-to-csv.yaml INSTA_INFRA_FOLDER=../insta-infra BASE_FOLDER=${PWD}/docker node ./src/index",
     "package": "npx ncc build src/index.js -o dist --source-map --license licenses.txt",
     "package:watch": "npm run package -- --watch",
     "test": "npx jest",

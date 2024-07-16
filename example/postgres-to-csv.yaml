@@ -6,6 +6,8 @@ run:
     test:
       env:
         POSTGRES_URL: jdbc:postgresql://postgres:5432/docker
+      mount:
+        - ${PWD}/example/my-app/shared/generated:/opt/app/shared/generated
       relationship:
         postgres_balance.account_number:
           - postgres_transaction.account_number
@@ -21,9 +23,11 @@ run:
             schema:
               fields:
                 - name: account_number
+                  type: string
                 - name: create_time
                   type: timestamp
                 - name: transaction_id
+                  type: string
                 - name: amount
                   type: double
           - name: postgres_balance
@@ -32,12 +36,16 @@ run:
             schema:
               fields:
                 - name: account_number
-                  generator:
-                    options:
-                      isUnique: true
+                  type: string
+                  options:
+                    isUnique: true
+                    regex: ACC[0-9]{10}
                 - name: create_time
                   type: timestamp
                 - name: account_status
+                  type: string
+                  options:
+                    oneOf: [open, closed]
                 - name: balance
                   type: double
       validation:
