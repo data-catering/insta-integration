@@ -1,7 +1,7 @@
 {
   "name": "insta-integration",
   "description": "insta-integration GitHub Action",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "author": "data-catering",
   "private": false,
   "bin": {

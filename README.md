@@ -50,6 +50,60 @@ Problems it can help with:
 
 1. Push your code and the GitHub Action will run
 
+### Services
+
+The following services are available to run alongside your application/job.
+
+<details>
+<summary>Click here</summary>
+
+| Service Type                | Service       | Supported |
+| --------------------------- | ------------- | --------- |
+| Change Data Capture         | debezium      | ✅        |
+| Database                    | cassandra     | ✅        |
+| Database                    | cockroachdb   | ✅        |
+| Database                    | elasticsearch | ✅        |
+| Database                    | mariadb       | ✅        |
+| Database                    | mongodb       | ✅        |
+| Database                    | mssql         | ✅        |
+| Database                    | mysql         | ✅        |
+| Database                    | neo4j         | ✅        |
+| Database                    | postgres      | ✅        |
+| Database                    | spanner       | ✅        |
+| Database                    | sqlite        | ✅        |
+| Database                    | opensearch    | ❌        |
+| Data Catalog                | marquez       | ✅        |
+| Data Catalog                | unitycatalog  | ✅        |
+| Data Catalog                | amundsen      | ❌        |
+| Data Catalog                | datahub       | ❌        |
+| Data Catalog                | openmetadata  | ❌        |
+| Distributed Coordination    | zookeeper     | ✅        |
+| Distributed Data Processing | flink         | ✅        |
+| HTTP                        | httpbin       | ✅        |
+| Identity Management         | keycloak      | ✅        |
+| Job Orchestrator            | airflow       | ✅        |
+| Job Orchestrator            | dagster       | ✅        |
+| Job Orchestrator            | mage-ai       | ✅        |
+| Job Orchestrator            | prefect       | ✅        |
+| Messaging                   | activemq      | ✅        |
+| Messaging                   | kafka         | ✅        |
+| Messaging                   | rabbitmq      | ✅        |
+| Messaging                   | solace        | ✅        |
+| Notebook                    | jupyter       | ✅        |
+| Object Storage              | minio         | ✅        |
+| Query Engine                | duckdb        | ✅        |
+| Query Engine                | flight-sql    | ✅        |
+| Query Engine                | presto        | ✅        |
+| Query Engine                | trino         | ✅        |
+| Real-time OLAP              | clickhouse    | ✅        |
+| Real-time OLAP              | doris         | ✅        |
+| Real-time OLAP              | druid         | ✅        |
+| Real-time OLAP              | pinot         | ✅        |
+| Test Data Management        | data-caterer  | ✅        |
+| Workflow                    | temporal      | ✅        |
+
+</details>
+
 ### Generation and Validation
 
 Since it uses [data-caterer](https://data.catering/) behind the scenes to help
@@ -62,6 +116,9 @@ what options are available.
 #### Data Sources
 
 The following data sources are available to generate/validate data.
+
+<details>
+<summary>Click here</summary>
 
 | Data Source Type | Data Source                        | Support | Free |
 | ---------------- | ---------------------------------- | ------- | ---- |
@@ -96,6 +153,8 @@ The following data sources are available to generate/validate data.
 | Metadata         | Datahub                            | ❌      | ❌   |
 | Metadata         | Data Contract CLI                  | ❌      | ❌   |
 | Metadata         | Solace Event Portal                | ❌      | ❌   |
+
+</details>
 
 #### Full Example
 
