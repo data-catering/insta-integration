@@ -5,7 +5,7 @@
   "author": "data-catering",
   "private": false,
   "bin": {
-    "insta-integration": "./src/cli.js"
+    "insta-integration": "src/cli.js"
   },
   "homepage": "https://github.com/data-catering/insta-integration",
   "repository": {

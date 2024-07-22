@@ -156,7 +156,33 @@ The following data sources are available to generate/validate data.
 
 </details>
 
-#### Full Example
+#### Examples
+
+##### Simple Example
+
+```yaml
+services: []
+run:
+  - command: ./my-app/run-app.sh
+    test:
+      generation:
+        parquet:
+          - options:
+              path: /tmp/parquet/accounts
+            schema:
+              fields:
+                - name: account_id
+      validation:
+        parquet:
+          - options:
+              path: /tmp/parquet/accounts
+            validations:
+              - expr: ISNOTNULL(account_id)
+              - aggType: count
+                aggExpr: count == 1000
+```
+
+##### Full Example
 
 ```yaml
 services:
