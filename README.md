@@ -330,6 +330,22 @@ below show how you can import the schema in your favourite IDE:
 - [IntelliJ](https://www.jetbrains.com/help/idea/json.html#ws_json_schema_add_custom)
 - [Visual Studio Code](https://code.visualstudio.com/docs/languages/json#_json-schemas-and-settings)
 
+#### Validate JSON Schema
+
+Using the following tool [`ajv`](https://www.npmjs.com/package/ajv).
+
+Validate the JSON Schema:
+
+```shell
+ajv compile --spec=draft2019 -s schema/insta-integration-config-latest.json
+```
+
+Validate a `insta-integration.yaml` file:
+
+```shell
+ajv validate --spec=draft2019 -s schema/insta-integration-config-latest.json -d example/postgres-to-csv.yaml
+```
+
 ### Example Flows
 
 [Examples can be found here.](example)
