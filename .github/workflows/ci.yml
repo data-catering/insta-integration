@@ -57,7 +57,7 @@ jobs:
         id: test-action
         uses: ./
         with:
-          configuration_file: example/file.yaml
+          configuration_file: example/postgres-to-csv.yaml
           base_folder: insta-integration-test
 
       - name: Print Output
