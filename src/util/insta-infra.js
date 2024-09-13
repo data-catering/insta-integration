@@ -72,7 +72,8 @@ function runServices(instaInfraFolder, serviceNames, envVars) {
   } catch (error) {
     logger.error(`Failed to run services=${serviceNamesInstaInfra}`)
     logger.error(
-      `Error details, status=${error.status}, message=${error.message}`
+      `Error details, status=${error.status}, message=${error.message},
+      stderr=${error.stderr.toString()}, stdout=${error.stdout.toString()}`
     )
     // eslint-disable-next-line github/array-foreach
     serviceNames.forEach(serviceName => {

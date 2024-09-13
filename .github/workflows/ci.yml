@@ -56,6 +56,8 @@ jobs:
       - name: Test Local Action
         id: test-action
         uses: ./
+        env:
+          LOG_LEVEL: debug
         with:
           configuration_file: example/postgres-to-csv.yaml
           base_folder: insta-integration-test
