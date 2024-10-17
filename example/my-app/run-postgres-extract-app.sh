@@ -11,5 +11,6 @@ docker exec postgres psql -Upostgres -d docker -c "COPY account.transactions TO 
 mkdir -p "${SCRIPT_DIR}"/shared/generated
 sudo docker cp postgres:/tmp/balances.csv "${SCRIPT_DIR}"/shared/generated/balances.csv
 sudo docker cp postgres:/tmp/transactions.csv "${SCRIPT_DIR}"/shared/generated/transactions.csv
-
+echo "Moved CSV files to current server"
+ls -lh "${SCRIPT_DIR}"/shared/generated
 echo "Finished running my-app!"
