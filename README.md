@@ -120,39 +120,40 @@ The following data sources are available to generate/validate data.
 <details>
 <summary>Click here</summary>
 
-| Data Source Type | Data Source                        | Support | Free |
-| ---------------- | ---------------------------------- | ------- | ---- |
-| Cloud Storage    | AWS S3                             | ✅      | ✅   |
-| Cloud Storage    | Azure Blob Storage                 | ✅      | ✅   |
-| Cloud Storage    | GCP Cloud Storage                  | ✅      | ✅   |
-| Database         | Cassandra                          | ✅      | ✅   |
-| Database         | MySQL                              | ✅      | ✅   |
-| Database         | Postgres                           | ✅      | ✅   |
-| Database         | Elasticsearch                      | ❌      | ✅   |
-| Database         | MongoDB                            | ❌      | ✅   |
-| Database         | Opensearch                         | ❌      | ✅   |
-| File             | CSV                                | ✅      | ✅   |
-| File             | Delta Lake                         | ✅      | ✅   |
-| File             | JSON                               | ✅      | ✅   |
-| File             | Iceberg                            | ✅      | ✅   |
-| File             | ORC                                | ✅      | ✅   |
-| File             | Parquet                            | ✅      | ✅   |
-| File             | Hudi                               | ❌      | ✅   |
-| HTTP             | REST API                           | ✅      | ❌   |
-| Messaging        | Kafka                              | ✅      | ❌   |
-| Messaging        | Solace                             | ✅      | ❌   |
-| Messaging        | ActiveMQ                           | ❌      | ❌   |
-| Messaging        | Pulsar                             | ❌      | ❌   |
-| Messaging        | RabbitMQ                           | ❌      | ❌   |
-| Metadata         | Great Expectations                 | ✅      | ❌   |
-| Metadata         | Marquez                            | ✅      | ❌   |
-| Metadata         | OpenAPI/Swagger                    | ✅      | ❌   |
-| Metadata         | OpenMetadata                       | ✅      | ❌   |
-| Metadata         | Open Data Contract Standard (ODCS) | ✅      | ❌   |
-| Metadata         | Amundsen                           | ❌      | ❌   |
-| Metadata         | Datahub                            | ❌      | ❌   |
-| Metadata         | Data Contract CLI                  | ❌      | ❌   |
-| Metadata         | Solace Event Portal                | ❌      | ❌   |
+| Data Source Type | Data Source                        | Support |
+| ---------------- |------------------------------------| ------- |
+| Cloud Storage    | AWS S3                             | ✅      |
+| Cloud Storage    | Azure Blob Storage                 | ✅      |
+| Cloud Storage    | GCP Cloud Storage                  | ✅      |
+| Database         | Cassandra                          | ✅      |
+| Database         | MySQL                              | ✅      |
+| Database         | Postgres                           | ✅      |
+| Database         | Elasticsearch                      | ❌      |
+| Database         | MongoDB                            | ❌      |
+| Database         | Opensearch                         | ❌      |
+| File             | CSV                                | ✅      |
+| File             | Delta Lake                         | ✅      |
+| File             | JSON                               | ✅      |
+| File             | Iceberg                            | ✅      |
+| File             | ORC                                | ✅      |
+| File             | Parquet                            | ✅      |
+| File             | Hudi                               | ❌      |
+| HTTP             | REST API                           | ✅      |
+| Messaging        | Kafka                              | ✅      |
+| Messaging        | Solace                             | ✅      |
+| Messaging        | ActiveMQ                           | ❌      |
+| Messaging        | Pulsar                             | ❌      |
+| Messaging        | RabbitMQ                           | ❌      |
+| Metadata         | Data Contract CLI                  | ✅      |
+| Metadata         | Great Expectations                 | ✅      |
+| Metadata         | Marquez                            | ✅      |
+| Metadata         | OpenAPI/Swagger                    | ✅      |
+| Metadata         | OpenMetadata                       | ✅      |
+| Metadata         | Open Data Contract Standard (ODCS) | ✅      |
+| Metadata         | Amundsen                           | ❌      |
+| Metadata         | Datahub                            | ❌      |
+| Metadata         | Data Contract CLI                  | ❌      |
+| Metadata         | Solace Event Portal                | ❌      |
 
 </details>
 
