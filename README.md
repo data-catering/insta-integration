@@ -121,7 +121,7 @@ The following data sources are available to generate/validate data.
 <summary>Click here</summary>
 
 | Data Source Type | Data Source                        | Support |
-| ---------------- |------------------------------------| ------- |
+| ---------------- | ---------------------------------- | ------- |
 | Cloud Storage    | AWS S3                             | ✅      |
 | Cloud Storage    | Azure Blob Storage                 | ✅      |
 | Cloud Storage    | GCP Cloud Storage                  | ✅      |

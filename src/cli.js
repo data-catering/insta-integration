@@ -21,7 +21,7 @@ program
   .option(
     '-d, --data-caterer-version <version>',
     'Version of data-caterer Docker image',
-    '0.11.8'
+    '0.12.0'
   )
   .option(
     '-i, --insta-infra-folder <folder>',
