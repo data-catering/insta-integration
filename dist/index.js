@@ -21962,7 +21962,6 @@ function runDataCaterer(
   )
   createDockerNetwork()
   const dockerRunCommand = createDataCatererDockerRunCommand(
-    !dockerToken, //If docker token is defined, set to false
     dataCatererVersion,
     sharedFolder,
     configurationFolder,
@@ -22726,7 +22725,6 @@ const notifyGenerationDoneTask = () => {
 
 /**
  * Docker run command for data-caterer
- * @param basicImage  Use basic image or not
  * @param version Version of data-caterer Docker image
  * @param sharedFolder  Folder to volume mount for shared files between host and data-caterer
  * @param confFolder  Configuration folder containing plan, tasks and validation files
@@ -22735,7 +22733,6 @@ const notifyGenerationDoneTask = () => {
  * @returns {string}
  */
 function createDataCatererDockerRunCommand(
-  basicImage,
   version,
   sharedFolder,
   confFolder,
@@ -22744,7 +22741,7 @@ function createDataCatererDockerRunCommand(
   volumeMounts,
   appIndex
 ) {
-  const imageName = basicImage ? 'data-caterer-basic' : 'data-caterer'
+  const imageName = 'data-caterer'
   const dockerEnvVars = []
   const dockerMounts = []
   for (const [key, value] of Object.entries(envVars)) {

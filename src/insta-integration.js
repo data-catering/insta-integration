@@ -325,7 +325,6 @@ function runDataCaterer(
   )
   createDockerNetwork()
   const dockerRunCommand = createDataCatererDockerRunCommand(
-    !dockerToken, //If docker token is defined, set to false
     dataCatererVersion,
     sharedFolder,
     configurationFolder,
