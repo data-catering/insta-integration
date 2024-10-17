@@ -8,8 +8,8 @@ docker exec postgres psql -Upostgres -d docker -c "COPY account.balances TO '/tm
 docker exec postgres psql -Upostgres -d docker -c "COPY account.transactions TO '/tmp/transactions.csv' WITH (FORMAT CSV, HEADER);"
 
 # Copy files from Postgres container to shared folder
-mkdir -p ${SCRIPT_DIR}/shared/generated
-docker cp postgres:/tmp/balances.csv ${SCRIPT_DIR}/shared/generated/balances.csv
-docker cp postgres:/tmp/transactions.csv ${SCRIPT_DIR}/shared/generated/transactions.csv
+mkdir -p "${SCRIPT_DIR}"/shared/generated
+sudo docker cp postgres:/tmp/balances.csv "${SCRIPT_DIR}"/shared/generated/balances.csv
+sudo docker cp postgres:/tmp/transactions.csv "${SCRIPT_DIR}"/shared/generated/transactions.csv
 
 echo "Finished running my-app!"
