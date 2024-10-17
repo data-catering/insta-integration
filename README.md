@@ -270,7 +270,7 @@ can be found below.
 | configuration_file   | File path to configuration file                                                              | `insta-integration.yaml`                 |
 | insta_infra_folder   | Folder path to insta-infra ([this repository](https://github.com/data-catering/insta-infra)) | `${HOME}/.insta-integration/insta-infra` |
 | base_folder          | Folder path to use for execution files                                                       | `${HOME}/.insta-integration`             |
-| data_caterer_version | Version of data-caterer Docker image                                                         | `0.11.8`                                 |
+| data_caterer_version | Version of data-caterer Docker image                                                         | `0.12.1`                                 |
 
 To use these configurations, alter your
 `.github/workflows/integration-test.yaml`.
