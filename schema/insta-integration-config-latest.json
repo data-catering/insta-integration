@@ -561,14 +561,17 @@
               "relationship": {
                 "type": "object",
                 "description": "Define any relationships between data generation data sources. For example, 'account_number' field being the same across two Postgres tables accounts and balances.",
-                "additionalProperties": {
-                  "type": "array",
-                  "items": {
-                    "type": "string",
-                    "description": "Uses the pattern: '<name of generation>.<field name>'",
-                    "pattern": "^[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-]+$"
+                "patternProperties": {
+                  "^[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-]+$": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "description": "Uses the pattern: '<name of generation>.<field name>'",
+                      "pattern": "^[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-]+$"
+                    }
                   }
-                }
+                },
+                "additionalProperties": false
               },
               "validation": {
                 "type": "object",
@@ -627,8 +630,7 @@
             "additionalProperties": false
           }
         },
-        "additionalProperties": false,
-        "required": ["command"]
+        "additionalProperties": false
       }
     }
   },
