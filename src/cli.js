@@ -4,7 +4,7 @@ const { program } = require('commander')
 const { run } = require('./main')
 
 program
-  .version('1.0.3')
+  .version('1.0.11')
   .description(
     'insta-integration CLI - Simple integration testing for any application or job'
   )
@@ -21,7 +21,7 @@ program
   .option(
     '-d, --data-caterer-version <version>',
     'Version of data-caterer Docker image',
-    '0.12.0'
+    '0.12.2'
   )
   .option(
     '-i, --insta-infra-folder <folder>',

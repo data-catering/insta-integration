@@ -21802,7 +21802,14 @@ function extractDataGenerationTasks(
                           return Object.fromEntries(
                             Object.entries(f).map(fe => {
                               if (fe[0] === 'options') {
-                                return ['generator', { options: fe[1] }]
+                                if (Object.hasOwn(fe[1], 'oneOf')) {
+                                  return [
+                                    'generator',
+                                    { type: 'oneOf', options: fe[1] }
+                                  ]
+                                } else {
+                                  return ['generator', { options: fe[1] }]
+                                }
                               } else {
                                 return fe
                               }
@@ -22083,63 +22090,72 @@ async function runApplication(
   appIndex,
   waitForFinish
 ) {
-  logger.info('Running application/job')
-  setEnvironmentVariables(runConf)
-  const logsFolder = `${baseFolder}/logs`
-  if (!fs.existsSync(logsFolder)) {
-    fs.mkdirSync(logsFolder)
-  }
-  try {
-    const logFile = `${logsFolder}/app_output_${appIndex}.log`
-    const logStream = fs.createWriteStream(logFile, { flags: 'w+' })
-    // Run in the background
-    const runApp = spawn(runConf.command, [], {
-      cwd: configFolder,
-      shell: true
-    })
-    runApp.stdout.pipe(logStream)
-    runApp.stderr.pipe(logStream)
-
-    if (waitForFinish) {
-      logger.info({
-        message: 'Waiting for command to finish',
-        command: runConf.command
+  if (runConf.command) {
+    logger.info('Running application/job')
+    setEnvironmentVariables(runConf)
+    const logsFolder = `${baseFolder}/logs`
+    if (!fs.existsSync(logsFolder)) {
+      fs.mkdirSync(logsFolder)
+    }
+    try {
+      const logFile = `${logsFolder}/app_output_${appIndex}.log`
+      const logStream = fs.createWriteStream(logFile, { flags: 'w+' })
+      // Run in the background
+      const runApp = spawn(runConf.command, [], {
+        cwd: configFolder,
+        shell: true
       })
-      await new Promise(resolve => {
+      runApp.stdout.pipe(logStream)
+      runApp.stderr.pipe(logStream)
+
+      if (waitForFinish) {
+        logger.info({
+          message: 'Waiting for command to finish',
+          command: runConf.command
+        })
+        await new Promise(resolve => {
+          runApp.on('close', function (code) {
+            logger.info(`Application ${appIndex} exited with code ${code}`)
+            showLogFileContent(logFile)
+            resolve()
+          })
+        })
+      } else {
         runApp.on('close', function (code) {
           logger.info(`Application ${appIndex} exited with code ${code}`)
           showLogFileContent(logFile)
-          resolve()
         })
-      })
-    } else {
-      runApp.on('close', function (code) {
-        logger.info(`Application ${appIndex} exited with code ${code}`)
-        showLogFileContent(logFile)
-      })
-    }
+      }
 
-    runApp.on('error', function (err) {
-      logger.error(`Application ${appIndex} failed with error`)
-      logger.error(err)
-      showLogFileContent(logFile)
-      throw new Error(err)
-    })
-    return { runApp, logStream }
-  } catch (error) {
-    logger.error(`Failed to run application/job, command=${runConf.command}`)
-    throw new Error(error)
+      runApp.on('error', function (err) {
+        logger.error(`Application ${appIndex} failed with error`)
+        logger.error(err)
+        showLogFileContent(logFile)
+        throw new Error(err)
+      })
+      return { runApp, logStream }
+    } catch (error) {
+      logger.error(`Failed to run application/job, command=${runConf.command}`)
+      throw new Error(error)
+    }
+  } else {
+    logger.debug('No command defined')
+    return null
   }
 }
 
 function shutdownApplication(applicationProcess) {
-  logger.debug('Attempting to close log stream')
-  applicationProcess.logStream.close()
-  logger.debug(`Attempting to shut down application`)
-  if (applicationProcess && applicationProcess.runApp) {
-    applicationProcess.runApp.kill()
+  if (applicationProcess !== null) {
+    logger.debug('Attempting to close log stream')
+    applicationProcess.logStream.close()
+    logger.debug(`Attempting to shut down application`)
+    if (applicationProcess && applicationProcess.runApp) {
+      applicationProcess.runApp.kill()
+    } else {
+      logger.debug(`Application already stopped`)
+    }
   } else {
-    logger.debug(`Application already stopped`)
+    logger.debug('Application process is null, not attempting to shutdown')
   }
 }
 
@@ -22378,7 +22394,7 @@ function getBaseFolder(baseFolder) {
 }
 
 function getDataCatererVersion(dataCatererVersion) {
-  return !dataCatererVersion ? '0.12.1' : dataCatererVersion
+  return !dataCatererVersion ? '0.12.2' : dataCatererVersion
 }
 
 function getConfiguration() {
