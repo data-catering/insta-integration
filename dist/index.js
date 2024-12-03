@@ -21807,6 +21807,11 @@ function extractDataGenerationTasks(
                                     'generator',
                                     { type: 'oneOf', options: fe[1] }
                                   ]
+                                } else if (Object.hasOwn(fe[1], 'regex')) {
+                                  return [
+                                    'generator',
+                                    { type: 'regex', options: fe[1] }
+                                  ]
                                 } else {
                                   return ['generator', { options: fe[1] }]
                                 }
