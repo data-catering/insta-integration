@@ -124,11 +124,12 @@ function writeToFile(folder, fileName, content, isPlanText) {
   }
   const fileContent = isPlanText ? content : yaml.dump(content)
   logger.debug(`Creating file, file-path=${folder}/${fileName}`)
-  fs.writeFileSync(`${folder}/${fileName}`, fileContent, err => {
-    if (err) {
-      throw err
-    }
-  })
+  try {
+    fs.writeFileSync(`${folder}/${fileName}`, fileContent, 'utf-8')
+  } catch (err) {
+    logger.error(`Failed to write to file, file-name=${folder}/${fileName}`)
+    throw new Error(err)
+  }
 }
 
 function extractDataGenerationTasks(
@@ -514,10 +515,9 @@ async function runApplication(
 
 function shutdownApplication(applicationProcess) {
   if (applicationProcess !== null) {
-    logger.debug('Attempting to close log stream')
-    applicationProcess.logStream.close()
     logger.debug(`Attempting to shut down application`)
     if (applicationProcess && applicationProcess.runApp) {
+      logger.debug('Killing application now')
       applicationProcess.runApp.kill()
     } else {
       logger.debug(`Application already stopped`)

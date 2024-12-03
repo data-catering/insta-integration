@@ -4,7 +4,7 @@ const { program } = require('commander')
 const { run } = require('./main')
 
 program
-  .version('1.0.12')
+  .version('1.0.13')
   .description(
     'insta-integration CLI - Simple integration testing for any application or job'
   )
