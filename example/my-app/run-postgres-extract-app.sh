@@ -12,5 +12,6 @@ mkdir -p "${SCRIPT_DIR}"/shared/generated
 sudo docker cp postgres:/tmp/balances.csv "${SCRIPT_DIR}"/shared/generated/balances.csv
 sudo docker cp postgres:/tmp/transactions.csv "${SCRIPT_DIR}"/shared/generated/transactions.csv
 echo "Moved CSV files to current server"
+echo "Script directory: ${SCRIPT_DIR}"
 ls -lh "${SCRIPT_DIR}"/shared/generated
 echo "Finished running my-app!"
