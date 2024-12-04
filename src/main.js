@@ -18,7 +18,7 @@ function getBaseFolder(baseFolder) {
 }
 
 function getDataCatererVersion(dataCatererVersion) {
-  return !dataCatererVersion ? '0.12.2' : dataCatererVersion
+  return !dataCatererVersion ? '0.12.3' : dataCatererVersion
 }
 
 function getConfiguration() {
