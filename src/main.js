@@ -34,8 +34,15 @@ function getConfigurationItem(item, defaultValue, requiredNonEmpty = false) {
     typeof actionsInput !== 'undefined' && actionsInput.length > 0
       ? actionsInput
       : defaultValue
-  if (requiredNonEmpty && !configValue && configValue.length === 0) {
-    throw new Error(`Configuration item ${item} is required to be non-empty`)
+  if (
+    (requiredNonEmpty &&
+      typeof configValue !== 'undefined' &&
+      configValue.length === 0) ||
+    typeof configValue === 'undefined'
+  ) {
+    throw new Error(
+      `Configuration item ${item} is required to be defined and non-empty`
+    )
   }
   return configValue
 }
