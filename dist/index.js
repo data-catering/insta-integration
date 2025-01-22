@@ -21841,15 +21841,22 @@ function extractRelationships(
             sptChildRelationship,
             generationTaskToServiceMapping
           )
-          childrenRelationshipServiceNames.push(
-            `${childServiceName}.${childRel}`
-          )
+          const foreignKeyRelation = {
+            dataSource: childServiceName,
+            step: sptChildRelationship[0],
+            fields: sptChildRelationship[1].split(',')
+          }
+          childrenRelationshipServiceNames.push(foreignKeyRelation)
         }
-        currentPlan.sinkOptions.foreignKeys.push([
-          `${baseServiceName}.${rel[0]}`,
-          childrenRelationshipServiceNames,
-          []
-        ])
+        const sourceForeignKeyRelation = {
+          dataSource: baseServiceName,
+          step: sptRelationship[0],
+          fields: sptRelationship[1].split(',')
+        }
+        currentPlan.sinkOptions.foreignKeys.push({
+          source: sourceForeignKeyRelation,
+          generate: childrenRelationshipServiceNames
+        })
       } else {
         throw new Error(
           'Cannot define relationship without any data generation defined'

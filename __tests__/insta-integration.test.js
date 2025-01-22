@@ -416,11 +416,25 @@ describe('extractRelationships', () => {
     )
 
     expect(currentPlan.sinkOptions.foreignKeys).toEqual([
-      [
-        'parent.parentTask.id',
-        ['child1.child1Task.parent_id', 'child2.child2Task.parent_id'],
-        []
-      ]
+      {
+        source: {
+          dataSource: 'parent',
+          step: 'parentTask',
+          fields: ['id']
+        },
+        generate: [
+          {
+            dataSource: 'child1',
+            step: 'child1Task',
+            fields: ['parent_id']
+          },
+          {
+            dataSource: 'child2',
+            step: 'child2Task',
+            fields: ['parent_id']
+          }
+        ]
+      }
     ])
   })
 
@@ -449,8 +463,34 @@ describe('extractRelationships', () => {
     )
 
     expect(currentPlan.sinkOptions.foreignKeys).toEqual([
-      ['user.userTask.id', ['order.orderTask.user_id'], []],
-      ['product.productTask.id', ['order.orderTask.product_id'], []]
+      {
+        source: {
+          dataSource: 'user',
+          step: 'userTask',
+          fields: ['id']
+        },
+        generate: [
+          {
+            dataSource: 'order',
+            step: 'orderTask',
+            fields: ['user_id']
+          }
+        ]
+      },
+      {
+        source: {
+          dataSource: 'product',
+          step: 'productTask',
+          fields: ['id']
+        },
+        generate: [
+          {
+            dataSource: 'order',
+            step: 'orderTask',
+            fields: ['product_id']
+          }
+        ]
+      }
     ])
   })
 })
