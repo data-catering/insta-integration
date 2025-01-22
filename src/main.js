@@ -106,7 +106,11 @@ async function run() {
     logger.debug(`Using insta-infra folder: ${config.instaInfraFolder}`)
     logger.debug(`Using base folder: ${config.baseFolder}`)
     logger.debug(`Using data-caterer version: ${config.dataCatererVersion}`)
-    runIntegrationTests(config)
+    const result = runIntegrationTests(config)
+    // eslint-disable-next-line github/no-then
+    return result.then(() => {
+      logger.info('insta-integration run completed')
+    })
   } catch (error) {
     // Fail the workflow run if an error occurs
     logger.error('Failed to run insta-integration. ', error)

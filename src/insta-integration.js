@@ -481,14 +481,6 @@ async function runTests(parsedConfig, configFileDirectory, config) {
   if (parsedConfig.run) {
     await cleanAppDoneFiles(parsedConfig, sharedFolder)
     for (const [i, runConf] of parsedConfig.run.entries()) {
-      // Need to know whether to run application first or data generation
-      // For example, REST API application should run first then data generation
-      // For job, data generation first, then run job
-      // By default, data generation runs first since most data sinks are databases/files
-      //
-      // Command could be relative to the config folder
-      // Have to cleanse the command
-      // Could limit options in the `run` section to `script name, java, docker`
       writeToFile(
         configurationFolder,
         'application.conf',
@@ -499,6 +491,7 @@ async function runTests(parsedConfig, configFileDirectory, config) {
       let applicationProcess
       let dataCatererRunId
       if (isRunGenerationFirst(runConf)) {
+        logger.debug('Running data generation first')
         dataCatererRunId = runDataCaterer(
           runConf.test,
           i,
@@ -507,6 +500,7 @@ async function runTests(parsedConfig, configFileDirectory, config) {
           config
         )
         await waitForDataGeneration(runConf.test, sharedFolder, i)
+        logger.debug('Running application after data generation')
         applicationProcess = await runApplication(
           runConf,
           configFileDirectory,
@@ -514,8 +508,10 @@ async function runTests(parsedConfig, configFileDirectory, config) {
           i,
           runConf.commandWaitForFinish
         )
+        logger.debug('Notifying data caterer that application is done')
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
       } else {
+        logger.debug('Running application first')
         applicationProcess = await runApplication(
           runConf,
           configFileDirectory,
@@ -523,6 +519,7 @@ async function runTests(parsedConfig, configFileDirectory, config) {
           i,
           runConf.commandWaitForFinish
         )
+        logger.debug('Running data generation after application')
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
         dataCatererRunId = runDataCaterer(
           runConf.test,
@@ -614,7 +611,7 @@ function showTestResultSummary(testResults) {
  * - Run data-caterer
  * - Return back summarised results
  * @param config Base configuration with config file path, insta-infra folder, execution folder, and docker token
- * @returns {string}  Results of data-caterer
+ * @returns {Promise<*>} Resolves with test results
  */
 async function runIntegrationTests(config) {
   if (config.instaInfraFolder.includes(' ')) {
@@ -637,16 +634,17 @@ async function runIntegrationTests(config) {
     runServices(config.instaInfraFolder, serviceNames, envVars)
   }
 
-  const testResults = await runTests(
+  const testResultsPromise = runTests(
     parsedConfig,
     applicationConfigDirectory,
     config
   )
 
-  logger.info('Finished tests!')
-  showTestResultSummary(testResults)
-
-  return testResults
+  // eslint-disable-next-line github/no-then
+  return testResultsPromise.then(testResults => {
+    logger.info('Finished tests!')
+    showTestResultSummary(testResults)
+  })
 }
 
 module.exports = {

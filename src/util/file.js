@@ -77,6 +77,7 @@ async function checkFileExistsWithTimeout(filePath, appIndex, timeout = 60000) {
     }, timeout)
 
     fs.access(filePath, fs.constants.R_OK, function (err) {
+      logger.debug(`Checking if file exists, file=${filePath}`)
       if (!err) {
         logger.debug(`File exists, file=${filePath}`)
         clearTimeout(timer)
