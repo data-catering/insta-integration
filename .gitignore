@@ -105,3 +105,5 @@ __tests__/runner/*
 docker
 insta-integration-docker
 example/my-app/shared
+newFolder
+

@@ -11,7 +11,12 @@ function runDockerImage(dockerCommand, appIndex) {
   } catch (error) {
     logger.error('Failed to run data caterer docker image')
     logger.info('Checking data-caterer logs')
-    logger.info(execSync(`docker logs data-caterer-${appIndex}`).toString())
+    try {
+      const dataCatererLogs = execSync(`docker logs data-caterer-${appIndex}`)
+      logger.info(dataCatererLogs.toString())
+    } catch (e) {
+      logger.error('Failed to retrieve data-caterer logs')
+    }
     core.setFailed(error)
     throw new Error(error)
   }
@@ -49,23 +54,6 @@ function createDockerNetwork() {
   }
 }
 
-function dockerLogin(dockerToken) {
-  if (dockerToken) {
-    logger.debug('Docker token is defined, attempting to login')
-    try {
-      execSync(`docker login -u datacatering -p ${dockerToken}`, {
-        stdio: 'pipe'
-      })
-    } catch (error) {
-      logger.warn(
-        'Failed to login with Docker token, continuing to attempt tests'
-      )
-    }
-  } else {
-    logger.debug('No Docker token defined')
-  }
-}
-
 function isContainerFinished(containerName) {
   const checkContainerExited = `docker ps -q -f name=${containerName} -f status=exited`
   const isExited = execSync(checkContainerExited)
@@ -80,11 +68,20 @@ function isContainerFinished(containerName) {
       logger.error(
         `${containerName} docker container has non-zero exit code, showing container logs`
       )
-      logger.error(execSync(`docker logs ${containerName}`).toString())
+      try {
+        const containerLogs = execSync(`docker logs ${containerName}`)
+        logger.error(containerLogs.toString())
+      } catch (e) {
+        logger.error(
+          'Failed to retrieve container logs, container-name=',
+          containerName
+        )
+      }
       throw new Error(`${containerName} docker container failed`)
     }
     return true
   } else {
+    logger.debug(`${containerName} docker container has not finished`)
     return false
   }
 }
@@ -102,7 +99,6 @@ module.exports = {
   runDockerImage,
   createDockerNetwork,
   removeContainer,
-  dockerLogin,
   waitForContainerToFinish,
   isContainerFinished
 }

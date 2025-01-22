@@ -1,4 +1,5 @@
 const process = require('process')
+const crypto = require('node:crypto')
 
 /**
  * Application configuration file used by data-caterer
@@ -233,7 +234,8 @@ const basePlan = () => {
     sinkOptions: {
       foreignKeys: []
     },
-    validations: ['my-data-validation']
+    validations: ['my-data-validation'],
+    runId: crypto.randomUUID()
   }
 }
 
@@ -262,14 +264,14 @@ const baseValidation = () => {
 
 /**
  * Extra step appended to notify when data-caterer has finished generating data
- * @returns {{schema: {fields: [{name: string}]}, name: string, options: {path: string}, count: {records: number}}}
+ * @returns {{count: {records: number}, name: string, options: {path: string}, fields: [{name: string}]}}
  */
 const notifyGenerationDoneTask = () => {
   return {
-    name: 'data-gen-done-step',
-    options: { path: '/opt/app/shared/notify/data-gen-done' },
     count: { records: 1 },
-    schema: { fields: [{ name: 'account_id' }] }
+    fields: [{ name: 'account_id' }],
+    name: 'data-gen-done-step',
+    options: { path: '/opt/app/shared/notify/data-gen-done' }
   }
 }
 

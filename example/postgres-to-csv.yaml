@@ -20,34 +20,28 @@ run:
               perColumn:
                 columnNames: [account_number]
                 count: 5
-            schema:
-              fields:
-                - name: account_number
-                  type: string
-                - name: create_time
-                  type: timestamp
-                - name: transaction_id
-                  type: string
-                - name: amount
-                  type: double
+            fields:
+              - name: account_number
+              - name: create_time
+                type: timestamp
+              - name: transaction_id
+              - name: amount
+                type: double
           - name: postgres_balance
             options:
               dbtable: account.balances
-            schema:
-              fields:
-                - name: account_number
-                  type: string
-                  options:
-                    isUnique: true
-                    regex: ACC[0-9]{10}
-                - name: create_time
-                  type: timestamp
-                - name: account_status
-                  type: string
-                  options:
-                    oneOf: [open, closed]
-                - name: balance
-                  type: double
+            fields:
+              - name: account_number
+                options:
+                  isUnique: true
+                  regex: ACC[0-9]{10}
+              - name: create_time
+                type: timestamp
+              - name: account_status
+                options:
+                  oneOf: [open, closed]
+              - name: balance
+                type: double
       validation:
         csv:
           - options:

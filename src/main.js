@@ -3,10 +3,17 @@ const { runIntegrationTests } = require('./insta-integration')
 const { resolve } = require('node:path')
 const logger = require('./util/log')
 
+/**
+ * Retrieves the base folder path.
+ * @param {string} baseFolder - The default base folder path.
+ * @returns {string} - The resolved base folder path.
+ * @throws {Error} - If the base folder configuration is not defined.
+ */
 function getBaseFolder(baseFolder) {
+  const actionsInput = core.getInput('base_folder', {})
   const folderFromConf =
-    core.getInput('base_folder', {}).length > 0
-      ? core.getInput('base_folder', {})
+    typeof actionsInput !== 'undefined' && actionsInput.length > 0
+      ? actionsInput
       : baseFolder
   if (!baseFolder) {
     throw new Error('Base folder configuration is not defined')
@@ -18,7 +25,21 @@ function getBaseFolder(baseFolder) {
 }
 
 function getDataCatererVersion(dataCatererVersion) {
-  return !dataCatererVersion ? '0.12.3' : dataCatererVersion
+  return !dataCatererVersion ? '0.14.2' : dataCatererVersion
+}
+
+function getConfigurationItem(item, defaultValue, requiredNonEmpty = false) {
+  const actionsInput = core.getInput(item, {})
+  const configValue =
+    typeof actionsInput !== 'undefined' && actionsInput.length > 0
+      ? actionsInput
+      : defaultValue
+  if (requiredNonEmpty && !configValue) {
+    throw new Error(
+      `Configuration item ${item.toUpperCase()} is required to be non-empty`
+    )
+  }
+  return configValue
 }
 
 function getConfiguration() {
@@ -26,27 +47,34 @@ function getConfiguration() {
   let instaInfraFolder = process.env.INSTA_INFRA_FOLDER
   let baseFolder = process.env.BASE_FOLDER
   let dataCatererVersion = process.env.DATA_CATERER_VERSION
-  let dockerToken = process.env.DOCKER_TOKEN
+  let dataCatererUser = process.env.DATA_CATERER_USER
+  let dataCatererToken = process.env.DATA_CATERER_TOKEN
 
   logger.debug('Checking if GitHub Action properties defined')
   if (core) {
-    applicationConfig =
-      core.getInput('configuration_file', {}).length > 0
-        ? core.getInput('configuration_file', {})
-        : applicationConfig
-    instaInfraFolder =
-      core.getInput('insta_infra_folder', {}).length > 0
-        ? core.getInput('insta_infra_folder', {})
-        : instaInfraFolder
-    baseFolder = getBaseFolder(baseFolder)
-    dataCatererVersion =
-      core.getInput('data_caterer_version', {}).length > 0
-        ? core.getInput('data_caterer_version', {})
-        : getDataCatererVersion(dataCatererVersion)
-    dockerToken =
-      core.getInput('docker_token', {}).length > 0
-        ? core.getInput('docker_token', {})
-        : dockerToken
+    applicationConfig = getConfigurationItem(
+      'configuration_file',
+      applicationConfig
+    )
+    instaInfraFolder = getConfigurationItem(
+      'insta_infra_folder',
+      instaInfraFolder
+    )
+    baseFolder = getConfigurationItem('base_folder', baseFolder)
+    dataCatererVersion = getConfigurationItem(
+      'data_caterer_version',
+      getDataCatererVersion(dataCatererVersion)
+    )
+    dataCatererUser = getConfigurationItem(
+      'data_caterer_user',
+      dataCatererUser,
+      true
+    )
+    dataCatererToken = getConfigurationItem(
+      'data_caterer_token',
+      dataCatererToken,
+      true
+    )
   }
 
   return {
@@ -54,7 +82,8 @@ function getConfiguration() {
     instaInfraFolder,
     baseFolder,
     dataCatererVersion,
-    dockerToken
+    dataCatererUser,
+    dataCatererToken
   }
 }
 
@@ -75,9 +104,15 @@ async function run() {
     runIntegrationTests(config)
   } catch (error) {
     // Fail the workflow run if an error occurs
-    logger.error(error)
+    logger.error('Failed to run insta-integration. ', error)
     core.setFailed(error.message)
+    throw error
   }
 }
 
-module.exports = { run }
+module.exports = {
+  getBaseFolder,
+  getConfiguration,
+  getDataCatererVersion,
+  run
+}
