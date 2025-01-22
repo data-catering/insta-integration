@@ -21635,9 +21635,8 @@ module.exports = class Stream extends TransportStream {
 /***/ 8370:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-const { execSync, exec, spawn } = __nccwpck_require__(2081)
+const { spawn } = __nccwpck_require__(2081)
 const core = __nccwpck_require__(2186)
-const yaml = __nccwpck_require__(1917)
 const fs = __nccwpck_require__(7147)
 const {
   baseApplicationConf,
@@ -21652,26 +21651,18 @@ const {
   removeContainer,
   runDockerImage,
   createDockerNetwork,
-  dockerLogin,
   waitForContainerToFinish
 } = __nccwpck_require__(2519)
 const { checkInstaInfraExists, runServices } = __nccwpck_require__(9758)
 const logger = __nccwpck_require__(9048)
-
-/**
- * Parse the configuration file as YAML
- * @param configFile  YAML configuration file
- * @returns {*} Parsed YAML object
- */
-function parseConfigFile(configFile) {
-  logger.debug(`Parsing config file=${configFile}`)
-  try {
-    return yaml.load(fs.readFileSync(configFile, 'utf8'))
-  } catch (error) {
-    core.setFailed(error.message)
-    throw error
-  }
-}
+const {
+  parseConfigFile,
+  cleanAppDoneFiles,
+  writeToFile,
+  createFolders,
+  showLogFileContent,
+  checkFileExistsWithTimeout
+} = __nccwpck_require__(2362)
 
 /**
  * From the parsed YAML configuration, extract services to run along with environment variables
@@ -21733,7 +21724,7 @@ function extractServiceNamesAndEnv(parsedConfig, configFileDirectory) {
       }
     }
   } else {
-    logger.debug(`No services defined`)
+    logger.debug('No services defined')
   }
   return { serviceNames, envVars }
 }
@@ -21751,21 +21742,6 @@ function extractServiceFromGeneration(
     throw new Error(
       `Relationship defined without corresponding generation task, relationship=${sptRelationship[0]}`
     )
-  }
-}
-
-function writeToFile(folder, fileName, content, isPlanText) {
-  if (!fs.existsSync(folder)) {
-    logger.debug(`Creating folder since it does not exist, folder=${folder}`)
-    fs.mkdirSync(folder, { recursive: true })
-  }
-  const fileContent = isPlanText ? content : yaml.dump(content)
-  logger.debug(`Creating file, file-path=${folder}/${fileName}`)
-  try {
-    fs.writeFileSync(`${folder}/${fileName}`, fileContent, 'utf-8')
-  } catch (err) {
-    logger.error(`Failed to write to file, file-name=${folder}/${fileName}`)
-    throw new Error(err)
   }
 }
 
@@ -21790,47 +21766,20 @@ function extractDataGenerationTasks(
         }
         task.name = taskName
         const mappedGenTask = Object.fromEntries(
-          Object.entries(generationTask).map(t => {
-            if (t[0] === 'schema') {
+          Object.entries(generationTask).map(currTask => {
+            if (currTask[0] === 'fields') {
               return [
-                t[0],
-                Object.fromEntries(
-                  (Object.entries(t[1]) || []).map(s => {
-                    if (s[0] === 'fields') {
-                      return [
-                        s[0],
-                        (s[1] || []).map(f => {
-                          return Object.fromEntries(
-                            Object.entries(f).map(fe => {
-                              if (fe[0] === 'options') {
-                                if (Object.hasOwn(fe[1], 'oneOf')) {
-                                  return [
-                                    'generator',
-                                    { type: 'oneOf', options: fe[1] }
-                                  ]
-                                } else if (Object.hasOwn(fe[1], 'regex')) {
-                                  return [
-                                    'generator',
-                                    { type: 'regex', options: fe[1] }
-                                  ]
-                                } else {
-                                  return ['generator', { options: fe[1] }]
-                                }
-                              } else {
-                                return fe
-                              }
-                            })
-                          )
-                        })
-                      ]
-                    } else {
-                      return s
-                    }
-                  })
-                )
+                currTask[0],
+                (currTask[1] || []).map(currField => {
+                  return Object.fromEntries(
+                    Object.entries(currField).map(fieldEntry => {
+                      return fieldEntry
+                    })
+                  )
+                })
               ]
             } else {
-              return t
+              return currTask
             }
           })
         )
@@ -21870,7 +21819,7 @@ function extractRelationships(
       const sptRelationship = rel[0].split('.')
       if (sptRelationship.length !== 2) {
         throw new Error(
-          'Relationship should follow pattern: <generation name>.<field name>'
+          `Relationship should follow pattern: <generation name>.<field name>, relationship=${rel[0]}`
         )
       }
       if (testConfig.generation) {
@@ -21881,9 +21830,15 @@ function extractRelationships(
         )
         const childrenRelationshipServiceNames = []
         for (const childRel of rel[1]) {
+          const sptChildRelationship = childRel.split('.')
+          if (sptChildRelationship.length !== 2) {
+            throw new Error(
+              `Relationship should follow pattern: <generation name>.<field name>, relationship=${childRel}`
+            )
+          }
           const childServiceName = extractServiceFromGeneration(
             testConfig,
-            childRel.split('.'),
+            sptChildRelationship,
             generationTaskToServiceMapping
           )
           childrenRelationshipServiceNames.push(
@@ -21929,8 +21884,19 @@ function extractDataValidations(testConfig, appIndex, currValidations) {
   }
 }
 
-function extractDataCatererEnv(testConfig) {
-  return testConfig.env ? testConfig.env : {}
+function extractDataCatererEnv(testConfig, baseConfig) {
+  const allConfig = testConfig.env ? testConfig.env : {}
+  if (baseConfig.dataCatererUser) {
+    allConfig['DATA_CATERER_API_USER'] = baseConfig.dataCatererUser
+  } else {
+    throw new Error('No data caterer user defined')
+  }
+  if (baseConfig.dataCatererToken) {
+    allConfig['DATA_CATERER_API_TOKEN'] = baseConfig.dataCatererToken
+  } else {
+    throw new Error('No data caterer token defined')
+  }
+  return allConfig
 }
 
 function runDataCaterer(
@@ -21938,13 +21904,13 @@ function runDataCaterer(
   appIndex,
   configurationFolder,
   sharedFolder,
-  dataCatererVersion,
-  dockerToken
+  baseConfig
 ) {
   logger.info('Reading data generation and validation configurations')
   // Use template plan and task YAML files
   // Also, template application.conf
   const currentPlan = basePlan()
+  const runId = currentPlan.runId
   const currentTasks = []
   const currValidations = baseValidation()
   const generationTaskToServiceMapping = {}
@@ -21956,7 +21922,7 @@ function runDataCaterer(
   )
   extractRelationships(testConfig, generationTaskToServiceMapping, currentPlan)
   extractDataValidations(testConfig, appIndex, currValidations)
-  const dataCatererEnv = extractDataCatererEnv(testConfig)
+  const dataCatererEnv = extractDataCatererEnv(testConfig, baseConfig)
 
   writeToFile(`${configurationFolder}/plan`, 'my-plan.yaml', currentPlan)
   fs.mkdirSync(`${configurationFolder}/task`, { recursive: true })
@@ -21975,7 +21941,7 @@ function runDataCaterer(
   )
   createDockerNetwork()
   const dockerRunCommand = createDataCatererDockerRunCommand(
-    dataCatererVersion,
+    baseConfig.dataCatererVersion,
     sharedFolder,
     configurationFolder,
     'my-plan.yaml',
@@ -21987,57 +21953,7 @@ function runDataCaterer(
   removeContainer(`data-caterer-${appIndex}`)
   logger.info('Starting to run data generation and validation')
   runDockerImage(dockerRunCommand, appIndex)
-}
-
-async function cleanAppDoneFiles(parsedConfig, sharedFolder) {
-  // Clean up 'app-*-done' files in shared directory
-  await new Promise(resolve => {
-    setTimeout(resolve, 4000)
-  })
-  logger.debug('Removing files relating to notifying the application is done')
-  for (const [i] of parsedConfig.run.entries()) {
-    try {
-      fs.unlinkSync(`${sharedFolder}/app-${i}-done`)
-    } catch (error) {
-      logger.warn(error)
-    }
-  }
-}
-
-async function checkExistsWithTimeout(filePath, appIndex, timeout = 60000) {
-  await new Promise(function (resolve, reject) {
-    const timer = setTimeout(function () {
-      watcher.close()
-      logger.info('Checking data-caterer logs')
-      logger.info(execSync(`docker logs data-caterer-${appIndex}`).toString())
-      reject(
-        new Error(
-          `File did not exist and was not created during the timeout, file=${filePath}`
-        )
-      )
-    }, timeout)
-
-    fs.access(filePath, fs.constants.R_OK, function (err) {
-      if (!err) {
-        clearTimeout(timer)
-        watcher.close()
-        resolve()
-      }
-    })
-
-    const dir = dirname(filePath)
-    const currBasename = basename(filePath)
-    const watcher = fs.watch(dir, function (eventType, filename) {
-      if (eventType === 'rename' && filename === currBasename) {
-        clearTimeout(timer)
-        watcher.close()
-        resolve()
-      }
-    })
-  })
-  await new Promise(resolve => {
-    setTimeout(resolve, 1000)
-  })
+  return runId
 }
 
 async function waitForDataGeneration(testConfig, sharedFolder, appIndex) {
@@ -22050,7 +21966,7 @@ async function waitForDataGeneration(testConfig, sharedFolder, appIndex) {
     logger.info('Waiting for data generation to be completed')
     const notifyFilePath = `${sharedFolder}/notify/data-gen-done`
     fs.mkdirSync(`${sharedFolder}/notify`, { recursive: true })
-    await checkExistsWithTimeout(notifyFilePath, appIndex)
+    await checkFileExistsWithTimeout(notifyFilePath, appIndex)
     logger.debug('Removing data generation done folder')
     try {
       fs.rmSync(notifyFilePath, {
@@ -22080,15 +21996,6 @@ function setEnvironmentVariables(runConf) {
   }
 }
 
-function showLogFileContent(logFile) {
-  logger.debug(`Showing application logs`)
-  const logFileContent = fs.readFileSync(logFile).toString()
-  // eslint-disable-next-line github/array-foreach
-  logFileContent.split('\n').forEach(logLine => {
-    logger.debug(logLine)
-  })
-}
-
 async function runApplication(
   runConf,
   configFolder,
@@ -22101,7 +22008,20 @@ async function runApplication(
     setEnvironmentVariables(runConf)
     const logsFolder = `${baseFolder}/logs`
     if (!fs.existsSync(logsFolder)) {
-      fs.mkdirSync(logsFolder)
+      try {
+        fs.mkdirSync(logsFolder, { recursive: true })
+      } catch (e) {
+        logger.error(`Failed to create logs folder, folder=${logsFolder}`)
+        throw new Error(e)
+      }
+    }
+    if (!fs.existsSync(configFolder)) {
+      try {
+        fs.mkdirSync(configFolder, { recursive: true })
+      } catch (e) {
+        logger.error(`Failed to create config folder, folder=${configFolder}`)
+        throw new Error(e)
+      }
     }
     try {
       const logFile = `${logsFolder}/app_output_${appIndex}.log`
@@ -22119,7 +22039,12 @@ async function runApplication(
           message: 'Waiting for command to finish',
           command: runConf.command
         })
-        await new Promise(resolve => {
+        await new Promise((resolve, reject) => {
+          runApp.on('error', function (err) {
+            logger.error(`Application ${appIndex} failed with error`, err)
+            showLogFileContent(logFile)
+            reject(err)
+          })
           runApp.on('close', function (code) {
             logger.info(`Application ${appIndex} exited with code ${code}`)
             showLogFileContent(logFile)
@@ -22127,18 +22052,17 @@ async function runApplication(
           })
         })
       } else {
+        runApp.on('error', function (err) {
+          logger.error(`Application ${appIndex} failed with error`, err)
+          showLogFileContent(logFile)
+          throw err
+        })
         runApp.on('close', function (code) {
           logger.info(`Application ${appIndex} exited with code ${code}`)
           showLogFileContent(logFile)
         })
       }
 
-      runApp.on('error', function (err) {
-        logger.error(`Application ${appIndex} failed with error`)
-        logger.error(err)
-        showLogFileContent(logFile)
-        throw new Error(err)
-      })
       return { runApp, logStream }
     } catch (error) {
       logger.error(`Failed to run application/job, command=${runConf.command}`)
@@ -22152,7 +22076,7 @@ async function runApplication(
 
 function shutdownApplication(applicationProcess) {
   if (applicationProcess !== null) {
-    logger.debug(`Attempting to shut down application`)
+    logger.debug('Attempting to shut down application')
     if (applicationProcess && applicationProcess.runApp) {
       logger.debug('Killing application now')
       applicationProcess.runApp.kill()
@@ -22164,31 +22088,24 @@ function shutdownApplication(applicationProcess) {
   }
 }
 
-function createFolders(configurationFolder, sharedFolder, testResultsFolder) {
-  logger.debug(
-    `Using data caterer configuration folder: ${configurationFolder}`
+function isRunGenerationFirst(runConf) {
+  const generateFirstTrueWithTest =
+    typeof runConf.generateFirst !== 'undefined' &&
+    runConf.generateFirst === 'true' &&
+    runConf.test
+  return (
+    generateFirstTrueWithTest || typeof runConf.generateFirst === 'undefined'
   )
-  logger.debug(`Using shared folder: ${sharedFolder}`)
-  logger.debug(`Using test results folder: ${testResultsFolder}`)
-  fs.mkdirSync(configurationFolder, { recursive: true })
-  fs.mkdirSync(sharedFolder, { recursive: true })
-  fs.mkdirSync(testResultsFolder, { recursive: true })
 }
 
-async function runTests(
-  parsedConfig,
-  configFileDirectory,
-  baseFolder,
-  dataCatererVersion,
-  dockerToken
-) {
+async function runTests(parsedConfig, configFileDirectory, config) {
+  const baseFolder = config.baseFolder
+
   const configurationFolder = `${baseFolder}/conf`
   const sharedFolder = `${baseFolder}/shared`
   const testResultsFolder = `${configurationFolder}/report`
-  const testResultsFile = `${testResultsFolder}/results.json`
   const testResults = []
   createFolders(configurationFolder, sharedFolder, testResultsFolder)
-  dockerLogin(dockerToken)
   setEnvironmentVariables(parsedConfig)
 
   if (parsedConfig.run) {
@@ -22210,19 +22127,14 @@ async function runTests(
       )
 
       let applicationProcess
-      if (
-        (typeof runConf.generateFirst !== 'undefined' &&
-          runConf.generateFirst === 'true' &&
-          runConf.test) ||
-        typeof runConf.generateFirst === 'undefined'
-      ) {
-        runDataCaterer(
+      let dataCatererRunId
+      if (isRunGenerationFirst(runConf)) {
+        dataCatererRunId = runDataCaterer(
           runConf.test,
           i,
           configurationFolder,
           sharedFolder,
-          dataCatererVersion,
-          dockerToken
+          config
         )
         await waitForDataGeneration(runConf.test, sharedFolder, i)
         applicationProcess = await runApplication(
@@ -22242,22 +22154,20 @@ async function runTests(
           runConf.commandWaitForFinish
         )
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
-        runDataCaterer(
+        dataCatererRunId = runDataCaterer(
           runConf.test,
           i,
           configurationFolder,
           sharedFolder,
-          dataCatererVersion,
-          dockerToken
+          config
         )
       }
       // Wait for data caterer container to finish
       await waitForContainerToFinish(`data-caterer-${i}`)
       // Check if file exists
+      const testResultsFile = `${testResultsFolder}/${dataCatererRunId}/results.json`
       if (fs.existsSync(testResultsFile)) {
         testResults.push(JSON.parse(fs.readFileSync(testResultsFile, 'utf8')))
-        // Move results to separate file
-        fs.renameSync(testResultsFile, `${testResultsFolder}/results-${i}.json`)
       } else {
         logger.warn(
           `Test result file does not exist, unable to show test results, file=${testResultsFile}`
@@ -22310,7 +22220,7 @@ function showTestResultSummary(testResults) {
   }
   const validationSuccessRate = numSuccessValidations / numValidations
   logger.info('Test result summary')
-  logger.info(`Number of records generation: ${numRecordsGenerated}`)
+  logger.info(`Number of records generated: ${numRecordsGenerated}`)
   logger.info(`Number of successful validations: ${numSuccessValidations}`)
   logger.info(`Number of failed validations: ${numFailedValidations}`)
   logger.info(`Number of validations: ${numValidations}`)
@@ -22360,9 +22270,7 @@ async function runIntegrationTests(config) {
   const testResults = await runTests(
     parsedConfig,
     applicationConfigDirectory,
-    config.baseFolder,
-    config.dataCatererVersion,
-    config.dockerToken
+    config
   )
 
   logger.info('Finished tests!')
@@ -22371,7 +22279,16 @@ async function runIntegrationTests(config) {
   return testResults
 }
 
-module.exports = { runIntegrationTests }
+module.exports = {
+  runIntegrationTests,
+  extractDataGenerationTasks,
+  extractServiceFromGeneration,
+  extractDataValidations,
+  extractRelationships,
+  extractServiceNamesAndEnv,
+  shutdownApplication,
+  runApplication
+}
 
 
 /***/ }),
@@ -22384,10 +22301,17 @@ const { runIntegrationTests } = __nccwpck_require__(8370)
 const { resolve } = __nccwpck_require__(9411)
 const logger = __nccwpck_require__(9048)
 
+/**
+ * Retrieves the base folder path.
+ * @param {string} baseFolder - The default base folder path.
+ * @returns {string} - The resolved base folder path.
+ * @throws {Error} - If the base folder configuration is not defined.
+ */
 function getBaseFolder(baseFolder) {
+  const actionsInput = core.getInput('base_folder', {})
   const folderFromConf =
-    core.getInput('base_folder', {}).length > 0
-      ? core.getInput('base_folder', {})
+    typeof actionsInput !== 'undefined' && actionsInput.length > 0
+      ? actionsInput
       : baseFolder
   if (!baseFolder) {
     throw new Error('Base folder configuration is not defined')
@@ -22399,7 +22323,26 @@ function getBaseFolder(baseFolder) {
 }
 
 function getDataCatererVersion(dataCatererVersion) {
-  return !dataCatererVersion ? '0.12.3' : dataCatererVersion
+  return !dataCatererVersion ? '0.14.2' : dataCatererVersion
+}
+
+function getConfigurationItem(item, defaultValue, requiredNonEmpty = false) {
+  const actionsInput = core.getInput(item, {})
+  const configValue =
+    typeof actionsInput !== 'undefined' && actionsInput.length > 0
+      ? actionsInput
+      : defaultValue
+  if (
+    (requiredNonEmpty &&
+      typeof configValue !== 'undefined' &&
+      configValue.length === 0) ||
+    typeof configValue === 'undefined'
+  ) {
+    throw new Error(
+      `Configuration item ${item} is required to be defined and non-empty`
+    )
+  }
+  return configValue
 }
 
 function getConfiguration() {
@@ -22407,27 +22350,34 @@ function getConfiguration() {
   let instaInfraFolder = process.env.INSTA_INFRA_FOLDER
   let baseFolder = process.env.BASE_FOLDER
   let dataCatererVersion = process.env.DATA_CATERER_VERSION
-  let dockerToken = process.env.DOCKER_TOKEN
+  let dataCatererUser = process.env.DATA_CATERER_USER
+  let dataCatererToken = process.env.DATA_CATERER_TOKEN
 
   logger.debug('Checking if GitHub Action properties defined')
   if (core) {
-    applicationConfig =
-      core.getInput('configuration_file', {}).length > 0
-        ? core.getInput('configuration_file', {})
-        : applicationConfig
-    instaInfraFolder =
-      core.getInput('insta_infra_folder', {}).length > 0
-        ? core.getInput('insta_infra_folder', {})
-        : instaInfraFolder
-    baseFolder = getBaseFolder(baseFolder)
-    dataCatererVersion =
-      core.getInput('data_caterer_version', {}).length > 0
-        ? core.getInput('data_caterer_version', {})
-        : getDataCatererVersion(dataCatererVersion)
-    dockerToken =
-      core.getInput('docker_token', {}).length > 0
-        ? core.getInput('docker_token', {})
-        : dockerToken
+    applicationConfig = getConfigurationItem(
+      'configuration_file',
+      applicationConfig
+    )
+    instaInfraFolder = getConfigurationItem(
+      'insta_infra_folder',
+      instaInfraFolder
+    )
+    baseFolder = getConfigurationItem('base_folder', baseFolder)
+    dataCatererVersion = getConfigurationItem(
+      'data_caterer_version',
+      getDataCatererVersion(dataCatererVersion)
+    )
+    dataCatererUser = getConfigurationItem(
+      'data_caterer_user',
+      dataCatererUser,
+      true
+    )
+    dataCatererToken = getConfigurationItem(
+      'data_caterer_token',
+      dataCatererToken,
+      true
+    )
   }
 
   return {
@@ -22435,7 +22385,8 @@ function getConfiguration() {
     instaInfraFolder,
     baseFolder,
     dataCatererVersion,
-    dockerToken
+    dataCatererUser,
+    dataCatererToken
   }
 }
 
@@ -22456,12 +22407,18 @@ async function run() {
     runIntegrationTests(config)
   } catch (error) {
     // Fail the workflow run if an error occurs
-    logger.error(error)
+    logger.error('Failed to run insta-integration. ', error)
     core.setFailed(error.message)
+    throw error
   }
 }
 
-module.exports = { run }
+module.exports = {
+  getBaseFolder,
+  getConfiguration,
+  getDataCatererVersion,
+  run
+}
 
 
 /***/ }),
@@ -22470,6 +22427,7 @@ module.exports = { run }
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 const process = __nccwpck_require__(7282)
+const crypto = __nccwpck_require__(6005)
 
 /**
  * Application configuration file used by data-caterer
@@ -22704,7 +22662,8 @@ const basePlan = () => {
     sinkOptions: {
       foreignKeys: []
     },
-    validations: ['my-data-validation']
+    validations: ['my-data-validation'],
+    runId: crypto.randomUUID()
   }
 }
 
@@ -22733,14 +22692,14 @@ const baseValidation = () => {
 
 /**
  * Extra step appended to notify when data-caterer has finished generating data
- * @returns {{schema: {fields: [{name: string}]}, name: string, options: {path: string}, count: {records: number}}}
+ * @returns {{count: {records: number}, name: string, options: {path: string}, fields: [{name: string}]}}
  */
 const notifyGenerationDoneTask = () => {
   return {
-    name: 'data-gen-done-step',
-    options: { path: '/opt/app/shared/notify/data-gen-done' },
     count: { records: 1 },
-    schema: { fields: [{ name: 'account_id' }] }
+    fields: [{ name: 'account_id' }],
+    name: 'data-gen-done-step',
+    options: { path: '/opt/app/shared/notify/data-gen-done' }
   }
 }
 
@@ -22775,8 +22734,8 @@ function createDataCatererDockerRunCommand(
   }
   const uid = process.getuid()
   const gid = process.getgid()
-  let user = ``
-  //to make it work for GitHub Actions
+  let user = ''
+  // to make it work for GitHub Actions
   if (uid === 1001) {
     user = `--user ${uid}:${gid}`
   }
@@ -22819,7 +22778,12 @@ function runDockerImage(dockerCommand, appIndex) {
   } catch (error) {
     logger.error('Failed to run data caterer docker image')
     logger.info('Checking data-caterer logs')
-    logger.info(execSync(`docker logs data-caterer-${appIndex}`).toString())
+    try {
+      const dataCatererLogs = execSync(`docker logs data-caterer-${appIndex}`)
+      logger.info(dataCatererLogs.toString())
+    } catch (e) {
+      logger.error('Failed to retrieve data-caterer logs')
+    }
     core.setFailed(error)
     throw new Error(error)
   }
@@ -22846,31 +22810,14 @@ function removeContainer(containerName) {
 function createDockerNetwork() {
   // Check if network is created, create if it isn't
   try {
-    const network_details = execSync('docker network ls')
-    if (!network_details.toString().includes('insta-infra_default')) {
+    const networkDetails = execSync('docker network ls')
+    if (!networkDetails.toString().includes('insta-infra_default')) {
       logger.info('Creating docker network: insta-infra_default')
       execSync('docker network create insta-infra_default')
     }
   } catch (error) {
     logger.error('Failed to check Docker network')
     throw new Error(error)
-  }
-}
-
-function dockerLogin(dockerToken) {
-  if (dockerToken) {
-    logger.debug('Docker token is defined, attempting to login')
-    try {
-      execSync(`docker login -u datacatering -p ${dockerToken}`, {
-        stdio: 'pipe'
-      })
-    } catch (error) {
-      logger.warn(
-        'Failed to login with Docker token, continuing to attempt tests'
-      )
-    }
-  } else {
-    logger.debug('No Docker token defined')
   }
 }
 
@@ -22888,11 +22835,20 @@ function isContainerFinished(containerName) {
       logger.error(
         `${containerName} docker container has non-zero exit code, showing container logs`
       )
-      logger.error(execSync(`docker logs ${containerName}`).toString())
+      try {
+        const containerLogs = execSync(`docker logs ${containerName}`)
+        logger.error(containerLogs.toString())
+      } catch (e) {
+        logger.error(
+          'Failed to retrieve container logs, container-name=',
+          containerName
+        )
+      }
       throw new Error(`${containerName} docker container failed`)
     }
     return true
   } else {
+    logger.debug(`${containerName} docker container has not finished`)
     return false
   }
 }
@@ -22910,9 +22866,149 @@ module.exports = {
   runDockerImage,
   createDockerNetwork,
   removeContainer,
-  dockerLogin,
   waitForContainerToFinish,
   isContainerFinished
+}
+
+
+/***/ }),
+
+/***/ 2362:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+const logger = __nccwpck_require__(9048)
+const { execSync } = __nccwpck_require__(2081)
+const { dirname, basename } = __nccwpck_require__(9411)
+const yaml = __nccwpck_require__(1917)
+const core = __nccwpck_require__(2186)
+const fs = __nccwpck_require__(7147)
+
+/**
+ * Parse the configuration file as YAML
+ * @param configFile  YAML configuration file
+ * @returns {*} Parsed YAML object
+ */
+function parseConfigFile(configFile) {
+  logger.debug(`Parsing config file=${configFile}`)
+  try {
+    return yaml.load(fs.readFileSync(configFile, 'utf8'))
+  } catch (error) {
+    core.setFailed(error.message)
+    throw Error(
+      `Failed to parse configuration file, config-file=${configFile}`,
+      error
+    )
+  }
+}
+
+function writeToFile(folder, fileName, content, isPlanText) {
+  if (!fs.existsSync(folder)) {
+    logger.debug(`Creating folder since it does not exist, folder=${folder}`)
+    fs.mkdirSync(folder, { recursive: true })
+  }
+  const fileContent = isPlanText ? content : yaml.dump(content)
+  logger.debug(`Creating file, file-path=${folder}/${fileName}`)
+  try {
+    fs.writeFileSync(`${folder}/${fileName}`, fileContent, 'utf-8')
+  } catch (err) {
+    logger.error(`Failed to write to file, file-name=${folder}/${fileName}`)
+    throw new Error(err)
+  }
+}
+
+async function cleanAppDoneFiles(parsedConfig, sharedFolder, timeout = 4000) {
+  // Clean up 'app-*-done' files in shared directory
+  await new Promise(resolve => {
+    setTimeout(resolve, timeout)
+  })
+  logger.debug('Removing files relating to notifying the application is done')
+  for (const [i] of parsedConfig.run.entries()) {
+    try {
+      fs.unlinkSync(`${sharedFolder}/app-${i}-done`)
+    } catch (error) {
+      logger.debug(error)
+    }
+  }
+}
+
+async function checkFileExistsWithTimeout(filePath, appIndex, timeout = 60000) {
+  await new Promise(function (resolve, reject) {
+    // eslint-disable-next-line prefer-const
+    let watcher
+
+    const timer = setTimeout(function () {
+      if (watcher) {
+        watcher.close()
+      }
+      logger.info('Checking data-caterer logs')
+      try {
+        const dataCatererLogs = execSync(`docker logs data-caterer-${appIndex}`)
+        logger.info(dataCatererLogs.toString())
+      } catch (e) {
+        logger.error('Failed to get data-caterer logs', e)
+      }
+      reject(
+        new Error(
+          `File did not exist and was not created during the timeout, file=${filePath}`
+        )
+      )
+    }, timeout)
+
+    fs.access(filePath, fs.constants.R_OK, function (err) {
+      if (!err) {
+        logger.debug(`File exists, file=${filePath}`)
+        clearTimeout(timer)
+        if (watcher) {
+          watcher.close()
+        }
+        resolve()
+      }
+    })
+
+    const dir = dirname(filePath)
+    const currBasename = basename(filePath)
+    watcher = fs.watch(dir, function (eventType, filename) {
+      if (eventType === 'rename' && filename === currBasename) {
+        clearTimeout(timer)
+        if (watcher) {
+          watcher.close()
+        }
+        resolve()
+      }
+    })
+  })
+  await new Promise(resolve => {
+    setTimeout(resolve, 1000)
+  })
+}
+
+function showLogFileContent(logFile) {
+  logger.debug('Showing application logs')
+  const logFileContent = fs.readFileSync(logFile).toString()
+  // eslint-disable-next-line github/array-foreach
+  logFileContent.split('\n').forEach(logLine => {
+    logger.debug(logLine)
+  })
+}
+
+function createFolders(configurationFolder, sharedFolder, testResultsFolder) {
+  logger.debug(
+    `Using data caterer configuration folder: ${configurationFolder}`
+  )
+  logger.debug(`Using shared folder: ${sharedFolder}`)
+  logger.debug(`Using test results folder: ${testResultsFolder}`)
+  fs.mkdirSync(configurationFolder, { recursive: true })
+  fs.mkdirSync(sharedFolder, { recursive: true })
+  fs.mkdirSync(testResultsFolder, { recursive: true })
+}
+
+module.exports = {
+  parseConfigFile,
+  writeToFile,
+  cleanAppDoneFiles,
+  checkFileExistsWithTimeout,
+  showLogFileContent,
+  createFolders
 }
 
 
@@ -22996,7 +23092,7 @@ function runServices(instaInfraFolder, serviceNames, envVars) {
     logger.error(`Failed to run services=${serviceNamesInstaInfra}`)
     logger.error(
       `Error details, status=${error.status}, message=${error.message},
-      stderr=${error.stderr.toString()}, stdout=${error.stdout.toString()}`
+      stderr=${error.stderr}, stdout=${error.stdout}`
     )
     // eslint-disable-next-line github/array-foreach
     serviceNames.forEach(serviceName => {
@@ -23097,6 +23193,14 @@ module.exports = require("https");
 
 "use strict";
 module.exports = require("net");
+
+/***/ }),
+
+/***/ 6005:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:crypto");
 
 /***/ }),
 
