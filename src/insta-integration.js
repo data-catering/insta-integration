@@ -1,6 +1,5 @@
-const { execSync, exec, spawn } = require('child_process')
+const { spawn } = require('child_process')
 const core = require('@actions/core')
-const yaml = require('js-yaml')
 const fs = require('fs')
 const {
   baseApplicationConf,
@@ -15,26 +14,19 @@ const {
   removeContainer,
   runDockerImage,
   createDockerNetwork,
-  dockerLogin,
-  waitForContainerToFinish
+  waitForContainerToFinish,
+  logOutContainerLogs
 } = require('./util/docker')
 const { checkInstaInfraExists, runServices } = require('./util/insta-infra')
 const logger = require('./util/log')
-
-/**
- * Parse the configuration file as YAML
- * @param configFile  YAML configuration file
- * @returns {*} Parsed YAML object
- */
-function parseConfigFile(configFile) {
-  logger.debug(`Parsing config file=${configFile}`)
-  try {
-    return yaml.load(fs.readFileSync(configFile, 'utf8'))
-  } catch (error) {
-    core.setFailed(error.message)
-    throw error
-  }
-}
+const {
+  parseConfigFile,
+  cleanAppDoneFiles,
+  writeToFile,
+  createFolders,
+  showLogFileContent,
+  checkFileExistsWithTimeout
+} = require('./util/file')
 
 /**
  * From the parsed YAML configuration, extract services to run along with environment variables
@@ -96,7 +88,7 @@ function extractServiceNamesAndEnv(parsedConfig, configFileDirectory) {
       }
     }
   } else {
-    logger.debug(`No services defined`)
+    logger.debug('No services defined')
   }
   return { serviceNames, envVars }
 }
@@ -114,21 +106,6 @@ function extractServiceFromGeneration(
     throw new Error(
       `Relationship defined without corresponding generation task, relationship=${sptRelationship[0]}`
     )
-  }
-}
-
-function writeToFile(folder, fileName, content, isPlanText) {
-  if (!fs.existsSync(folder)) {
-    logger.debug(`Creating folder since it does not exist, folder=${folder}`)
-    fs.mkdirSync(folder, { recursive: true })
-  }
-  const fileContent = isPlanText ? content : yaml.dump(content)
-  logger.debug(`Creating file, file-path=${folder}/${fileName}`)
-  try {
-    fs.writeFileSync(`${folder}/${fileName}`, fileContent, 'utf-8')
-  } catch (err) {
-    logger.error(`Failed to write to file, file-name=${folder}/${fileName}`)
-    throw new Error(err)
   }
 }
 
@@ -153,47 +130,20 @@ function extractDataGenerationTasks(
         }
         task.name = taskName
         const mappedGenTask = Object.fromEntries(
-          Object.entries(generationTask).map(t => {
-            if (t[0] === 'schema') {
+          Object.entries(generationTask).map(currTask => {
+            if (currTask[0] === 'fields') {
               return [
-                t[0],
-                Object.fromEntries(
-                  (Object.entries(t[1]) || []).map(s => {
-                    if (s[0] === 'fields') {
-                      return [
-                        s[0],
-                        (s[1] || []).map(f => {
-                          return Object.fromEntries(
-                            Object.entries(f).map(fe => {
-                              if (fe[0] === 'options') {
-                                if (Object.hasOwn(fe[1], 'oneOf')) {
-                                  return [
-                                    'generator',
-                                    { type: 'oneOf', options: fe[1] }
-                                  ]
-                                } else if (Object.hasOwn(fe[1], 'regex')) {
-                                  return [
-                                    'generator',
-                                    { type: 'regex', options: fe[1] }
-                                  ]
-                                } else {
-                                  return ['generator', { options: fe[1] }]
-                                }
-                              } else {
-                                return fe
-                              }
-                            })
-                          )
-                        })
-                      ]
-                    } else {
-                      return s
-                    }
-                  })
-                )
+                currTask[0],
+                (currTask[1] || []).map(currField => {
+                  return Object.fromEntries(
+                    Object.entries(currField).map(fieldEntry => {
+                      return fieldEntry
+                    })
+                  )
+                })
               ]
             } else {
-              return t
+              return currTask
             }
           })
         )
@@ -233,7 +183,7 @@ function extractRelationships(
       const sptRelationship = rel[0].split('.')
       if (sptRelationship.length !== 2) {
         throw new Error(
-          'Relationship should follow pattern: <generation name>.<field name>'
+          `Relationship should follow pattern: <generation name>.<field name>, relationship=${rel[0]}`
         )
       }
       if (testConfig.generation) {
@@ -244,20 +194,33 @@ function extractRelationships(
         )
         const childrenRelationshipServiceNames = []
         for (const childRel of rel[1]) {
+          const sptChildRelationship = childRel.split('.')
+          if (sptChildRelationship.length !== 2) {
+            throw new Error(
+              `Relationship should follow pattern: <generation name>.<field name>, relationship=${childRel}`
+            )
+          }
           const childServiceName = extractServiceFromGeneration(
             testConfig,
-            childRel.split('.'),
+            sptChildRelationship,
             generationTaskToServiceMapping
           )
-          childrenRelationshipServiceNames.push(
-            `${childServiceName}.${childRel}`
-          )
+          const foreignKeyRelation = {
+            dataSource: childServiceName,
+            step: sptChildRelationship[0],
+            fields: sptChildRelationship[1].split(',')
+          }
+          childrenRelationshipServiceNames.push(foreignKeyRelation)
         }
-        currentPlan.sinkOptions.foreignKeys.push([
-          `${baseServiceName}.${rel[0]}`,
-          childrenRelationshipServiceNames,
-          []
-        ])
+        const sourceForeignKeyRelation = {
+          dataSource: baseServiceName,
+          step: sptRelationship[0],
+          fields: sptRelationship[1].split(',')
+        }
+        currentPlan.sinkOptions.foreignKeys.push({
+          source: sourceForeignKeyRelation,
+          generate: childrenRelationshipServiceNames
+        })
       } else {
         throw new Error(
           'Cannot define relationship without any data generation defined'
@@ -292,8 +255,19 @@ function extractDataValidations(testConfig, appIndex, currValidations) {
   }
 }
 
-function extractDataCatererEnv(testConfig) {
-  return testConfig.env ? testConfig.env : {}
+function extractDataCatererEnv(testConfig, baseConfig) {
+  const allConfig = testConfig.env ? testConfig.env : {}
+  if (baseConfig.dataCatererUser) {
+    allConfig['DATA_CATERER_API_USER'] = baseConfig.dataCatererUser
+  } else {
+    throw new Error('No data caterer user defined')
+  }
+  if (baseConfig.dataCatererToken) {
+    allConfig['DATA_CATERER_API_TOKEN'] = baseConfig.dataCatererToken
+  } else {
+    throw new Error('No data caterer token defined')
+  }
+  return allConfig
 }
 
 function runDataCaterer(
@@ -301,13 +275,13 @@ function runDataCaterer(
   appIndex,
   configurationFolder,
   sharedFolder,
-  dataCatererVersion,
-  dockerToken
+  baseConfig
 ) {
   logger.info('Reading data generation and validation configurations')
   // Use template plan and task YAML files
   // Also, template application.conf
   const currentPlan = basePlan()
+  const runId = currentPlan.runId
   const currentTasks = []
   const currValidations = baseValidation()
   const generationTaskToServiceMapping = {}
@@ -319,7 +293,7 @@ function runDataCaterer(
   )
   extractRelationships(testConfig, generationTaskToServiceMapping, currentPlan)
   extractDataValidations(testConfig, appIndex, currValidations)
-  const dataCatererEnv = extractDataCatererEnv(testConfig)
+  const dataCatererEnv = extractDataCatererEnv(testConfig, baseConfig)
 
   writeToFile(`${configurationFolder}/plan`, 'my-plan.yaml', currentPlan)
   fs.mkdirSync(`${configurationFolder}/task`, { recursive: true })
@@ -338,7 +312,7 @@ function runDataCaterer(
   )
   createDockerNetwork()
   const dockerRunCommand = createDataCatererDockerRunCommand(
-    dataCatererVersion,
+    baseConfig.dataCatererVersion,
     sharedFolder,
     configurationFolder,
     'my-plan.yaml',
@@ -350,57 +324,7 @@ function runDataCaterer(
   removeContainer(`data-caterer-${appIndex}`)
   logger.info('Starting to run data generation and validation')
   runDockerImage(dockerRunCommand, appIndex)
-}
-
-async function cleanAppDoneFiles(parsedConfig, sharedFolder) {
-  // Clean up 'app-*-done' files in shared directory
-  await new Promise(resolve => {
-    setTimeout(resolve, 4000)
-  })
-  logger.debug('Removing files relating to notifying the application is done')
-  for (const [i] of parsedConfig.run.entries()) {
-    try {
-      fs.unlinkSync(`${sharedFolder}/app-${i}-done`)
-    } catch (error) {
-      logger.warn(error)
-    }
-  }
-}
-
-async function checkExistsWithTimeout(filePath, appIndex, timeout = 60000) {
-  await new Promise(function (resolve, reject) {
-    const timer = setTimeout(function () {
-      watcher.close()
-      logger.info('Checking data-caterer logs')
-      logger.info(execSync(`docker logs data-caterer-${appIndex}`).toString())
-      reject(
-        new Error(
-          `File did not exist and was not created during the timeout, file=${filePath}`
-        )
-      )
-    }, timeout)
-
-    fs.access(filePath, fs.constants.R_OK, function (err) {
-      if (!err) {
-        clearTimeout(timer)
-        watcher.close()
-        resolve()
-      }
-    })
-
-    const dir = dirname(filePath)
-    const currBasename = basename(filePath)
-    const watcher = fs.watch(dir, function (eventType, filename) {
-      if (eventType === 'rename' && filename === currBasename) {
-        clearTimeout(timer)
-        watcher.close()
-        resolve()
-      }
-    })
-  })
-  await new Promise(resolve => {
-    setTimeout(resolve, 1000)
-  })
+  return runId
 }
 
 async function waitForDataGeneration(testConfig, sharedFolder, appIndex) {
@@ -413,11 +337,11 @@ async function waitForDataGeneration(testConfig, sharedFolder, appIndex) {
     logger.info('Waiting for data generation to be completed')
     const notifyFilePath = `${sharedFolder}/notify/data-gen-done`
     fs.mkdirSync(`${sharedFolder}/notify`, { recursive: true })
-    await checkExistsWithTimeout(notifyFilePath, appIndex)
+    await checkFileExistsWithTimeout(notifyFilePath, appIndex)
+    logOutContainerLogs(`data-caterer-${appIndex}`)
     logger.debug('Removing data generation done folder')
     try {
       fs.rmSync(notifyFilePath, {
-        recursive: true,
         force: true
       })
     } catch (error) {
@@ -443,15 +367,6 @@ function setEnvironmentVariables(runConf) {
   }
 }
 
-function showLogFileContent(logFile) {
-  logger.debug(`Showing application logs`)
-  const logFileContent = fs.readFileSync(logFile).toString()
-  // eslint-disable-next-line github/array-foreach
-  logFileContent.split('\n').forEach(logLine => {
-    logger.debug(logLine)
-  })
-}
-
 async function runApplication(
   runConf,
   configFolder,
@@ -464,7 +379,20 @@ async function runApplication(
     setEnvironmentVariables(runConf)
     const logsFolder = `${baseFolder}/logs`
     if (!fs.existsSync(logsFolder)) {
-      fs.mkdirSync(logsFolder)
+      try {
+        fs.mkdirSync(logsFolder, { recursive: true })
+      } catch (e) {
+        logger.error(`Failed to create logs folder, folder=${logsFolder}`)
+        throw new Error(e)
+      }
+    }
+    if (!fs.existsSync(configFolder)) {
+      try {
+        fs.mkdirSync(configFolder, { recursive: true })
+      } catch (e) {
+        logger.error(`Failed to create config folder, folder=${configFolder}`)
+        throw new Error(e)
+      }
     }
     try {
       const logFile = `${logsFolder}/app_output_${appIndex}.log`
@@ -482,7 +410,12 @@ async function runApplication(
           message: 'Waiting for command to finish',
           command: runConf.command
         })
-        await new Promise(resolve => {
+        await new Promise((resolve, reject) => {
+          runApp.on('error', function (err) {
+            logger.error(`Application ${appIndex} failed with error`, err)
+            showLogFileContent(logFile)
+            reject(err)
+          })
           runApp.on('close', function (code) {
             logger.info(`Application ${appIndex} exited with code ${code}`)
             showLogFileContent(logFile)
@@ -490,18 +423,17 @@ async function runApplication(
           })
         })
       } else {
+        runApp.on('error', function (err) {
+          logger.error(`Application ${appIndex} failed with error`, err)
+          showLogFileContent(logFile)
+          throw err
+        })
         runApp.on('close', function (code) {
           logger.info(`Application ${appIndex} exited with code ${code}`)
           showLogFileContent(logFile)
         })
       }
 
-      runApp.on('error', function (err) {
-        logger.error(`Application ${appIndex} failed with error`)
-        logger.error(err)
-        showLogFileContent(logFile)
-        throw new Error(err)
-      })
       return { runApp, logStream }
     } catch (error) {
       logger.error(`Failed to run application/job, command=${runConf.command}`)
@@ -515,7 +447,7 @@ async function runApplication(
 
 function shutdownApplication(applicationProcess) {
   if (applicationProcess !== null) {
-    logger.debug(`Attempting to shut down application`)
+    logger.debug('Attempting to shut down application')
     if (applicationProcess && applicationProcess.runApp) {
       logger.debug('Killing application now')
       applicationProcess.runApp.kill()
@@ -527,44 +459,29 @@ function shutdownApplication(applicationProcess) {
   }
 }
 
-function createFolders(configurationFolder, sharedFolder, testResultsFolder) {
-  logger.debug(
-    `Using data caterer configuration folder: ${configurationFolder}`
+function isRunGenerationFirst(runConf) {
+  const generateFirstTrueWithTest =
+    typeof runConf.generateFirst !== 'undefined' &&
+    runConf.generateFirst === 'true' &&
+    runConf.test
+  return (
+    generateFirstTrueWithTest || typeof runConf.generateFirst === 'undefined'
   )
-  logger.debug(`Using shared folder: ${sharedFolder}`)
-  logger.debug(`Using test results folder: ${testResultsFolder}`)
-  fs.mkdirSync(configurationFolder, { recursive: true })
-  fs.mkdirSync(sharedFolder, { recursive: true })
-  fs.mkdirSync(testResultsFolder, { recursive: true })
 }
 
-async function runTests(
-  parsedConfig,
-  configFileDirectory,
-  baseFolder,
-  dataCatererVersion,
-  dockerToken
-) {
+async function runTests(parsedConfig, configFileDirectory, config) {
+  const baseFolder = config.baseFolder
+
   const configurationFolder = `${baseFolder}/conf`
   const sharedFolder = `${baseFolder}/shared`
   const testResultsFolder = `${configurationFolder}/report`
-  const testResultsFile = `${testResultsFolder}/results.json`
   const testResults = []
   createFolders(configurationFolder, sharedFolder, testResultsFolder)
-  dockerLogin(dockerToken)
   setEnvironmentVariables(parsedConfig)
 
   if (parsedConfig.run) {
     await cleanAppDoneFiles(parsedConfig, sharedFolder)
     for (const [i, runConf] of parsedConfig.run.entries()) {
-      // Need to know whether to run application first or data generation
-      // For example, REST API application should run first then data generation
-      // For job, data generation first, then run job
-      // By default, data generation runs first since most data sinks are databases/files
-      //
-      // Command could be relative to the config folder
-      // Have to cleanse the command
-      // Could limit options in the `run` section to `script name, java, docker`
       writeToFile(
         configurationFolder,
         'application.conf',
@@ -573,21 +490,18 @@ async function runTests(
       )
 
       let applicationProcess
-      if (
-        (typeof runConf.generateFirst !== 'undefined' &&
-          runConf.generateFirst === 'true' &&
-          runConf.test) ||
-        typeof runConf.generateFirst === 'undefined'
-      ) {
-        runDataCaterer(
+      let dataCatererRunId
+      if (isRunGenerationFirst(runConf)) {
+        logger.debug('Running data generation first')
+        dataCatererRunId = runDataCaterer(
           runConf.test,
           i,
           configurationFolder,
           sharedFolder,
-          dataCatererVersion,
-          dockerToken
+          config
         )
         await waitForDataGeneration(runConf.test, sharedFolder, i)
+        logger.debug('Running application after data generation')
         applicationProcess = await runApplication(
           runConf,
           configFileDirectory,
@@ -595,8 +509,10 @@ async function runTests(
           i,
           runConf.commandWaitForFinish
         )
+        logger.debug('Notifying data caterer that application is done')
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
       } else {
+        logger.debug('Running application first')
         applicationProcess = await runApplication(
           runConf,
           configFileDirectory,
@@ -604,23 +520,22 @@ async function runTests(
           i,
           runConf.commandWaitForFinish
         )
+        logger.debug('Running data generation after application')
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
-        runDataCaterer(
+        dataCatererRunId = runDataCaterer(
           runConf.test,
           i,
           configurationFolder,
           sharedFolder,
-          dataCatererVersion,
-          dockerToken
+          config
         )
       }
       // Wait for data caterer container to finish
       await waitForContainerToFinish(`data-caterer-${i}`)
       // Check if file exists
+      const testResultsFile = `${testResultsFolder}/${dataCatererRunId}/results.json`
       if (fs.existsSync(testResultsFile)) {
         testResults.push(JSON.parse(fs.readFileSync(testResultsFile, 'utf8')))
-        // Move results to separate file
-        fs.renameSync(testResultsFile, `${testResultsFolder}/results-${i}.json`)
       } else {
         logger.warn(
           `Test result file does not exist, unable to show test results, file=${testResultsFile}`
@@ -673,7 +588,7 @@ function showTestResultSummary(testResults) {
   }
   const validationSuccessRate = numSuccessValidations / numValidations
   logger.info('Test result summary')
-  logger.info(`Number of records generation: ${numRecordsGenerated}`)
+  logger.info(`Number of records generated: ${numRecordsGenerated}`)
   logger.info(`Number of successful validations: ${numSuccessValidations}`)
   logger.info(`Number of failed validations: ${numFailedValidations}`)
   logger.info(`Number of validations: ${numValidations}`)
@@ -697,7 +612,7 @@ function showTestResultSummary(testResults) {
  * - Run data-caterer
  * - Return back summarised results
  * @param config Base configuration with config file path, insta-infra folder, execution folder, and docker token
- * @returns {string}  Results of data-caterer
+ * @returns {Promise<*>} Resolves with test results
  */
 async function runIntegrationTests(config) {
   if (config.instaInfraFolder.includes(' ')) {
@@ -720,18 +635,26 @@ async function runIntegrationTests(config) {
     runServices(config.instaInfraFolder, serviceNames, envVars)
   }
 
-  const testResults = await runTests(
+  const testResultsPromise = runTests(
     parsedConfig,
     applicationConfigDirectory,
-    config.baseFolder,
-    config.dataCatererVersion,
-    config.dockerToken
+    config
   )
 
-  logger.info('Finished tests!')
-  showTestResultSummary(testResults)
-
-  return testResults
+  // eslint-disable-next-line github/no-then
+  return testResultsPromise.then(testResults => {
+    logger.info('Finished tests!')
+    showTestResultSummary(testResults)
+  })
 }
 
-module.exports = { runIntegrationTests }
+module.exports = {
+  runIntegrationTests,
+  extractDataGenerationTasks,
+  extractServiceFromGeneration,
+  extractDataValidations,
+  extractRelationships,
+  extractServiceNamesAndEnv,
+  shutdownApplication,
+  runApplication
+}

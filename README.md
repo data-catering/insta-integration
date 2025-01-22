@@ -14,6 +14,11 @@ Problems it can help with:
 
 ## Usage
 
+### Get Token
+
+To use this GitHub Action, you need to get a username and token from
+[data-catering](https://data.catering/latest/get-started/quick-start/#get-token).
+
 ### CLI
 
 1. Install via `npm install -g insta-integration`
@@ -40,7 +45,10 @@ Problems it can help with:
        runs-on: ubuntu-latest
        steps:
          - name: Run integration tests
-           uses: data-catering/insta-integration@v1
+           uses: data-catering/insta-integration@v2
+           with:
+             data_caterer_user: ${{ secrets.DATA_CATERER_USER }}
+             data_caterer_token: ${{ secrets.DATA_CATERER_TOKEN }}
    ```
 
 1. Create YAML file `insta-integration.yaml` to define your integration tests
@@ -152,7 +160,6 @@ The following data sources are available to generate/validate data.
 | Metadata         | Open Data Contract Standard (ODCS) | ✅      |
 | Metadata         | Amundsen                           | ❌      |
 | Metadata         | Datahub                            | ❌      |
-| Metadata         | Data Contract CLI                  | ❌      |
 | Metadata         | Solace Event Portal                | ❌      |
 
 </details>
@@ -170,9 +177,8 @@ run:
         parquet:
           - options:
               path: /tmp/parquet/accounts
-            schema:
-              fields:
-                - name: account_id
+            fields:
+              - name: account_id
       validation:
         parquet:
           - options:
@@ -207,36 +213,31 @@ run:
             options: #configuration on specific data source
               dbtable: account.transactions
             count: #how many records to generate (1,000 by default)
-              perColumn: #generate 5 records per account_number
-                columnNames: [account_number]
+              perField: #generate 5 records per account_number
+                fieldNames: [account_number]
                 count: 5
-            schema: #schema of the data source
-              fields:
-                - name: account_number
-                  type: string
-                - name: create_time
-                  type: timestamp
-                - name: transaction_id
-                  type: string
-                - name: amount
-                  type: double
+            fields: #fields of the data source
+              - name: account_number #default data type is string
+              - name: create_time
+                type: timestamp
+              - name: transaction_id
+              - name: amount
+                type: double
           - name: postgres_balance
             options:
               dbtable: account.balances
-            schema:
-              fields:
-                - name: account_number
-                  options: #additional metadata for data generation
-                    isUnique: true
-                    regex: ACC[0-9]{10}
-                - name: create_time
-                  type: timestamp
-                - name: account_status
-                  type: string
-                  options:
-                    oneOf: [open, closed]
-                - name: balance
-                  type: double
+            fields:
+              - name: account_number
+                options: #additional metadata for data generation
+                  isUnique: true
+                  regex: ACC[0-9]{10}
+              - name: create_time
+                type: timestamp
+              - name: account_status
+                options:
+                  oneOf: [open, closed]
+              - name: balance
+                type: double
       validation:
         csv: #define data source for data validations
           - options:
@@ -265,12 +266,14 @@ run:
 Optional configurations to alter the files and folders used by the GitHub Action
 can be found below.
 
-| Name                 | Description                                                                                  | Default                                  |
-| -------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| configuration_file   | File path to configuration file                                                              | `insta-integration.yaml`                 |
-| insta_infra_folder   | Folder path to insta-infra ([this repository](https://github.com/data-catering/insta-infra)) | `${HOME}/.insta-integration/insta-infra` |
-| base_folder          | Folder path to use for execution files                                                       | `${HOME}/.insta-integration`             |
-| data_caterer_version | Version of data-caterer Docker image                                                         | `0.12.1`                                 |
+| Name                 | Description                                                                                                                           | Default                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| configuration_file   | File path to configuration file                                                                                                       | `insta-integration.yaml`                 |
+| insta_infra_folder   | Folder path to insta-infra ([this repository](https://github.com/data-catering/insta-infra))                                          | `${HOME}/.insta-integration/insta-infra` |
+| base_folder          | Folder path to use for execution files                                                                                                | `${HOME}/.insta-integration`             |
+| data_caterer_version | Version of data-caterer Docker image                                                                                                  | `0.14.2`                                 |
+| data_caterer_user    | User for data-caterer. If you don't have one yet, [create one here](https://data.catering/latest/get-started/quick-start/#get-token)  | <empty>                                  |
+| data_caterer_token   | Token for data-caterer. If you don't have one yet, [create one here](https://data.catering/latest/get-started/quick-start/#get-token) | <empty>                                  |
 
 To use these configurations, alter your
 `.github/workflows/integration-test.yaml`.
@@ -290,6 +293,11 @@ jobs:
         uses: data-catering/insta-integration@v1
         with:
           configuration_file: my/custom/folder/insta-integration.yaml
+          insta_infra_folder: insta-infra/folder
+          base_folder: execution/folder
+          data_caterer_version: 0.14.2
+          data_caterer_user: ${{ secrets.DATA_CATERER_USER }}
+          data_caterer_token: ${{ secrets.DATA_CATERER_TOKEN }}
 ```
 
 #### Output
@@ -350,11 +358,3 @@ ajv validate --spec=draft2019 -s schema/insta-integration-config-latest.json -d 
 ### Example Flows
 
 [Examples can be found here.](example)
-
-## Why Integration Test?
-
-It is the closest you get to simulating production. This involves:
-
-- Test your application/job end-to-end
-- Connect to data sources
-- Production-like data processed

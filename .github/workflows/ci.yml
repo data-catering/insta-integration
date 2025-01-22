@@ -61,6 +61,8 @@ jobs:
         with:
           configuration_file: example/postgres-to-csv.yaml
           base_folder: insta-integration-test
+          data_caterer_user: ${{ secrets.DATA_CATERER_USER }}
+          data_caterer_token: ${{ secrets.DATA_CATERER_TOKEN }}
 
       - name: Print Output
         id: output

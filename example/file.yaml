@@ -6,9 +6,8 @@ run:
         parquet:
           - options:
               path: /tmp/parquet/accounts
-            schema:
-              fields:
-                - name: account_id
+            fields:
+              - name: account_id
       validation:
         parquet:
           - options:

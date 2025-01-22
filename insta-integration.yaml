@@ -2,18 +2,26 @@ services: []
 run:
   - command: echo 'hello world'
     test:
+      relationship:
+        my_parquet.account_id:
+          - my_csv.account_id
       generation:
         parquet:
-          - options:
+          - name: my_parquet
+            options:
               path: /tmp/parquet/accounts
-            schema:
-              fields:
-                - name: account_id
-                  type: string
-                  options:
-                    regex: abc123
-                - name: name
-                  type: string
+            fields:
+              - name: account_id
+                options:
+                  regex: ACC[0-9]{8}
+              - name: name
+        csv:
+          - name: my_csv
+            options:
+              path: /tmp/csv/accounts
+            fields:
+              - name: account_id
+              - name: name
       validation:
         parquet:
           - options:
