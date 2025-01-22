@@ -1,8 +1,7 @@
 const {
   getBaseFolder,
   getDataCatererVersion,
-  getConfiguration,
-  run
+  getConfiguration
 } = require('../src/main')
 const core = require('@actions/core')
 

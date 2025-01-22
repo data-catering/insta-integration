@@ -5,7 +5,6 @@ const {
   runDockerImage,
   createDockerNetwork,
   removeContainer,
-  dockerLogin,
   waitForContainerToFinish,
   isContainerFinished
 } = require('../../src/util/docker')

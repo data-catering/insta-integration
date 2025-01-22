@@ -43,8 +43,8 @@ function removeContainer(containerName) {
 function createDockerNetwork() {
   // Check if network is created, create if it isn't
   try {
-    const network_details = execSync('docker network ls')
-    if (!network_details.toString().includes('insta-infra_default')) {
+    const networkDetails = execSync('docker network ls')
+    if (!networkDetails.toString().includes('insta-infra_default')) {
       logger.info('Creating docker network: insta-infra_default')
       execSync('docker network create insta-infra_default')
     }

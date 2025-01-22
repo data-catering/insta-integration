@@ -14,7 +14,6 @@ const {
   removeContainer,
   runDockerImage,
   createDockerNetwork,
-  dockerLogin,
   waitForContainerToFinish
 } = require('./util/docker')
 const { checkInstaInfraExists, runServices } = require('./util/insta-infra')
@@ -88,7 +87,7 @@ function extractServiceNamesAndEnv(parsedConfig, configFileDirectory) {
       }
     }
   } else {
-    logger.debug(`No services defined`)
+    logger.debug('No services defined')
   }
   return { serviceNames, envVars }
 }
@@ -440,7 +439,7 @@ async function runApplication(
 
 function shutdownApplication(applicationProcess) {
   if (applicationProcess !== null) {
-    logger.debug(`Attempting to shut down application`)
+    logger.debug('Attempting to shut down application')
     if (applicationProcess && applicationProcess.runApp) {
       logger.debug('Killing application now')
       applicationProcess.runApp.kill()

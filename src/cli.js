@@ -2,7 +2,6 @@
 
 const { program } = require('commander')
 const { run } = require('./main')
-const module = require('node:module')
 
 program
   .version('1.1.0')

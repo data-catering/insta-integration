@@ -306,8 +306,8 @@ function createDataCatererDockerRunCommand(
   }
   const uid = process.getuid()
   const gid = process.getgid()
-  let user = ``
-  //to make it work for GitHub Actions
+  let user = ''
+  // to make it work for GitHub Actions
   if (uid === 1001) {
     user = `--user ${uid}:${gid}`
   }

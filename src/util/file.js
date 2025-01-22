@@ -105,7 +105,7 @@ async function checkFileExistsWithTimeout(filePath, appIndex, timeout = 60000) {
 }
 
 function showLogFileContent(logFile) {
-  logger.debug(`Showing application logs`)
+  logger.debug('Showing application logs')
   const logFileContent = fs.readFileSync(logFile).toString()
   // eslint-disable-next-line github/array-foreach
   logFileContent.split('\n').forEach(logLine => {
