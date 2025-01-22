@@ -31,7 +31,8 @@ describe('runDockerImage', () => {
       'Failed to run data caterer docker image'
     )
     expect(logger.error).toHaveBeenCalledWith(
-      'Failed to retrieve data-caterer logs'
+      'Failed to retrieve container logs, container-name=',
+      'data-caterer-1'
     )
     expect(core.setFailed).toHaveBeenCalledWith(new Error('command failed'))
   })

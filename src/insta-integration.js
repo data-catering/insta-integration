@@ -14,7 +14,8 @@ const {
   removeContainer,
   runDockerImage,
   createDockerNetwork,
-  waitForContainerToFinish
+  waitForContainerToFinish,
+  logOutContainerLogs
 } = require('./util/docker')
 const { checkInstaInfraExists, runServices } = require('./util/insta-infra')
 const logger = require('./util/log')
@@ -337,10 +338,10 @@ async function waitForDataGeneration(testConfig, sharedFolder, appIndex) {
     const notifyFilePath = `${sharedFolder}/notify/data-gen-done`
     fs.mkdirSync(`${sharedFolder}/notify`, { recursive: true })
     await checkFileExistsWithTimeout(notifyFilePath, appIndex)
+    logOutContainerLogs(`data-caterer-${appIndex}`)
     logger.debug('Removing data generation done folder')
     try {
       fs.rmSync(notifyFilePath, {
-        recursive: true,
         force: true
       })
     } catch (error) {

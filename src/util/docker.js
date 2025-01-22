@@ -11,12 +11,7 @@ function runDockerImage(dockerCommand, appIndex) {
   } catch (error) {
     logger.error('Failed to run data caterer docker image')
     logger.info('Checking data-caterer logs')
-    try {
-      const dataCatererLogs = execSync(`docker logs data-caterer-${appIndex}`)
-      logger.info(dataCatererLogs.toString())
-    } catch (e) {
-      logger.error('Failed to retrieve data-caterer logs')
-    }
+    logOutContainerLogs(`data-caterer-${appIndex}`, false)
     core.setFailed(error)
     throw new Error(error)
   }
@@ -68,15 +63,7 @@ function isContainerFinished(containerName) {
       logger.error(
         `${containerName} docker container has non-zero exit code, showing container logs`
       )
-      try {
-        const containerLogs = execSync(`docker logs ${containerName}`)
-        logger.error(containerLogs.toString())
-      } catch (e) {
-        logger.error(
-          'Failed to retrieve container logs, container-name=',
-          containerName
-        )
-      }
+      logOutContainerLogs(containerName, false)
       throw new Error(`${containerName} docker container failed`)
     }
     return true
@@ -95,10 +82,30 @@ function waitForContainerToFinish(containerName) {
   return new Promise(poll)
 }
 
+function logOutContainerLogs(containerName, isDebug = true) {
+  try {
+    const containerLogs = execSync(`docker logs ${containerName}`).toString()
+    // eslint-disable-next-line github/array-foreach
+    containerLogs.split('\n').forEach(line => {
+      if (isDebug) {
+        logger.debug(line)
+      } else {
+        logger.error(line)
+      }
+    })
+  } catch (e) {
+    logger.error(
+      'Failed to retrieve container logs, container-name=',
+      containerName
+    )
+  }
+}
+
 module.exports = {
   runDockerImage,
   createDockerNetwork,
   removeContainer,
   waitForContainerToFinish,
-  isContainerFinished
+  isContainerFinished,
+  logOutContainerLogs
 }
