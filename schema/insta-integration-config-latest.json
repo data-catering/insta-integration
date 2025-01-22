@@ -321,7 +321,7 @@
                                   "description": "Path to file."
                                 },
                                 "partitionBy": {
-                                  "description": "Column name(s) to partition dataset by (comma separated)."
+                                  "description": "Field name(s) to partition dataset by (comma separated)."
                                 }
                               },
                               "required": ["path"]
@@ -509,7 +509,7 @@
                               "$ref": "#/$defs/UpstreamValidation"
                             },
                             {
-                              "$ref": "#/$defs/ColumnNameValidation"
+                              "$ref": "#/$defs/FieldNameValidation"
                             }
                           ]
                         }
@@ -1021,27 +1021,27 @@
     },
     "ValidationSelectExpression": {
       "const": "selectExpr",
-      "description": "SQL expression used to apply to columns before running validations."
+      "description": "SQL expression used to apply to fields before running validations."
     },
     "ValidationAggregateExpression": {
       "const": "aggExpr",
       "description": "SQL expression to define validation after aggregation. Check https://spark.apache.org/docs/latest/api/sql for reference."
     },
-    "ValidationAggregateColumn": {
-      "const": "aggCol",
-      "description": "Column name to run aggregation on."
+    "ValidationAggregateField": {
+      "const": "aggField",
+      "description": "Field name to run aggregation on."
     },
     "ValidationAggregateType": {
       "const": "aggType",
       "description": "Type of aggregation to run. Can be either: sum, avg, max, min, mean, stddev, count."
     },
-    "ValidationAggregateGroupByColumns": {
-      "const": "groupByCols",
-      "description": "Column names to group by for aggregation calculation."
+    "ValidationAggregateGroupByFields": {
+      "const": "groupByFields",
+      "description": "Field names to group by for aggregation calculation."
     },
-    "ValidationUpstreamJoinColumns": {
-      "const": "joinColumns",
-      "description": "Column names to run join operation on."
+    "ValidationUpstreamJoinFields": {
+      "const": "joinFields",
+      "description": "Field names to run join operation on."
     },
     "ValidationUpstreamJoinType": {
       "const": "joinType",
@@ -1059,25 +1059,25 @@
       "const": "validation",
       "description": "Validation to run after join with upstream data source."
     },
-    "ValidationColumnNameType": {
-      "const": "columnNameType",
-      "description": "Type of column name validation to run."
+    "ValidationFieldNameType": {
+      "const": "fieldNameType",
+      "description": "Type of field name validation to run."
     },
-    "ValidationColumnNameCount": {
+    "ValidationFieldNameCount": {
       "const": "count",
-      "description": "Expected number of column names."
+      "description": "Expected number of field names."
     },
-    "ValidationColumnNameMaxCount": {
+    "ValidationFieldNameMaxCount": {
       "const": "maxCount",
-      "description": "Maximum number of column names."
+      "description": "Maximum number of field names."
     },
-    "ValidationColumnNameMinCount": {
+    "ValidationFieldNameMinCount": {
       "const": "minCount",
-      "description": "Minimum number of column names."
+      "description": "Minimum number of field names."
     },
-    "ValidationColumnNames": {
+    "ValidationFieldNames": {
       "const": "names",
-      "description": "Expected column names."
+      "description": "Expected field names."
     },
     "BasicValidation": {
       "type": "object",
@@ -1115,13 +1115,13 @@
             "$ref": "#/$defs/ValidationPreFilterExpression"
           },
           {
-            "$ref": "#/$defs/ValidationAggregateColumn"
+            "$ref": "#/$defs/ValidationAggregateField"
           },
           {
             "$ref": "#/$defs/ValidationAggregateExpression"
           },
           {
-            "$ref": "#/$defs/ValidationAggregateGroupByColumns"
+            "$ref": "#/$defs/ValidationAggregateGroupByFields"
           },
           {
             "$ref": "#/$defs/ValidationAggregateType"
@@ -1146,7 +1146,7 @@
             "$ref": "#/$defs/ValidationUpstreamDataSource"
           },
           {
-            "$ref": "#/$defs/ValidationUpstreamJoinColumns"
+            "$ref": "#/$defs/ValidationUpstreamJoinFields"
           },
           {
             "$ref": "#/$defs/ValidationUpstreamJoinType"
@@ -1160,7 +1160,7 @@
         ]
       }
     },
-    "ColumnNameValidation": {
+    "FieldNameValidation": {
       "type": "object",
       "propertyNames": {
         "anyOf": [
@@ -1174,19 +1174,19 @@
             "$ref": "#/$defs/ValidationPreFilterExpression"
           },
           {
-            "$ref": "#/$defs/ValidationColumnNameCount"
+            "$ref": "#/$defs/ValidationFieldNameCount"
           },
           {
-            "$ref": "#/$defs/ValidationColumnNameMaxCount"
+            "$ref": "#/$defs/ValidationFieldNameMaxCount"
           },
           {
-            "$ref": "#/$defs/ValidationColumnNameMinCount"
+            "$ref": "#/$defs/ValidationFieldNameMinCount"
           },
           {
-            "$ref": "#/$defs/ValidationColumnNames"
+            "$ref": "#/$defs/ValidationFieldNames"
           },
           {
-            "$ref": "#/$defs/ValidationColumnNameType"
+            "$ref": "#/$defs/ValidationFieldNameType"
           }
         ]
       }
