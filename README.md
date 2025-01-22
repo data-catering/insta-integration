@@ -46,9 +46,9 @@ To use this GitHub Action, you need to get a username and token from
        steps:
          - name: Run integration tests
            uses: data-catering/insta-integration@v2
-           env:
-             DATA_CATERER_USER: ${{ secrets.DATA_CATERER_USER }}
-             DATA_CATERER_TOKEN: ${{ secrets.DATA_CATERER_TOKEN }}
+           with:
+             data_caterer_user: ${{ secrets.DATA_CATERER_USER }}
+             data_caterer_token: ${{ secrets.DATA_CATERER_TOKEN }}
    ```
 
 1. Create YAML file `insta-integration.yaml` to define your integration tests
@@ -293,6 +293,11 @@ jobs:
         uses: data-catering/insta-integration@v1
         with:
           configuration_file: my/custom/folder/insta-integration.yaml
+          insta_infra_folder: insta-infra/folder
+          base_folder: execution/folder
+          data_caterer_version: 0.14.2
+          data_caterer_user: ${{ secrets.DATA_CATERER_USER }}
+          data_caterer_token: ${{ secrets.DATA_CATERER_TOKEN }}
 ```
 
 #### Output
