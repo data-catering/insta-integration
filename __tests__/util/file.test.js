@@ -208,14 +208,17 @@ describe('checkFileExistsWithTimeout', () => {
 describe('showLogFileContent', () => {
   beforeEach(() => {
     jest.resetAllMocks()
+    jest.spyOn(fs, 'existsSync')
     jest.spyOn(fs, 'readFileSync')
     jest.spyOn(logger, 'debug')
   })
 
   it('should log each line of the log file', () => {
     const logContent = 'line1\nline2\nline3'
+    fs.existsSync.mockReturnValue(true)
     fs.readFileSync.mockReturnValue(logContent)
     showLogFileContent('/path/to/log')
+    expect(logger.debug).toHaveBeenCalledWith('Showing application logs')
     expect(logger.debug).toHaveBeenCalledWith('line1')
     expect(logger.debug).toHaveBeenCalledWith('line2')
     expect(logger.debug).toHaveBeenCalledWith('line3')

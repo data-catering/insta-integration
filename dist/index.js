@@ -22050,23 +22050,33 @@ async function runApplication(
         await new Promise((resolve, reject) => {
           runApp.on('error', function (err) {
             logger.error(`Application ${appIndex} failed with error`, err)
+            logStream.end()
             showLogFileContent(logFile)
             reject(err)
           })
           runApp.on('close', function (code) {
             logger.info(`Application ${appIndex} exited with code ${code}`)
+            logStream.end()
             showLogFileContent(logFile)
-            resolve()
+            if (code !== 0) {
+              reject(
+                new Error(`Application ${appIndex} exited with code ${code}`)
+              )
+            } else {
+              resolve()
+            }
           })
         })
       } else {
         runApp.on('error', function (err) {
           logger.error(`Application ${appIndex} failed with error`, err)
+          logStream.end()
           showLogFileContent(logFile)
           throw err
         })
         runApp.on('close', function (code) {
           logger.info(`Application ${appIndex} exited with code ${code}`)
+          logStream.end()
           showLogFileContent(logFile)
         })
       }
@@ -22329,7 +22339,7 @@ function getBaseFolder(baseFolder) {
 }
 
 function getDataCatererVersion(dataCatererVersion) {
-  return !dataCatererVersion ? '0.14.2' : dataCatererVersion
+  return !dataCatererVersion ? '0.14.3' : dataCatererVersion
 }
 
 function getConfigurationItem(item, defaultValue, requiredNonEmpty = false) {
@@ -23002,11 +23012,18 @@ async function checkFileExistsWithTimeout(filePath, appIndex, timeout = 60000) {
 
 function showLogFileContent(logFile) {
   logger.debug('Showing application logs')
-  const logFileContent = fs.readFileSync(logFile).toString()
-  // eslint-disable-next-line github/array-foreach
-  logFileContent.split('\n').forEach(logLine => {
-    logger.debug(logLine)
-  })
+  if (fs.existsSync(logFile)) {
+    const logFileContent = fs.readFileSync(logFile).toString()
+    // eslint-disable-next-line github/array-foreach
+    logFileContent.split('\n').forEach(logLine => {
+      logger.debug(logLine)
+    })
+  } else {
+    logger.error(
+      'Unable to show log file content, log file does not exist, log-file=',
+      logFile
+    )
+  }
 }
 
 function createFolders(configurationFolder, sharedFolder, testResultsFolder) {
