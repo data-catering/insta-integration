@@ -106,18 +106,20 @@ async function checkFileExistsWithTimeout(filePath, appIndex, timeout = 60000) {
 }
 
 function showLogFileContent(logFile) {
-  logger.debug('Showing application logs')
-  if (fs.existsSync(logFile)) {
-    const logFileContent = fs.readFileSync(logFile).toString()
-    // eslint-disable-next-line github/array-foreach
-    logFileContent.split('\n').forEach(logLine => {
-      logger.debug(logLine)
-    })
-  } else {
-    logger.error(
-      'Unable to show log file content, log file does not exist, log-file=',
-      logFile
-    )
+  if (logger.isDebugEnabled()) {
+    logger.debug('Showing application logs')
+    if (fs.existsSync(logFile)) {
+      const logFileContent = fs.readFileSync(logFile).toString()
+      // eslint-disable-next-line github/array-foreach
+      logFileContent.split('\n').forEach(logLine => {
+        logger.debug(logLine)
+      })
+    } else {
+      logger.error(
+        'Unable to show log file content, log file does not exist, log-file=',
+        logFile
+      )
+    }
   }
 }
 

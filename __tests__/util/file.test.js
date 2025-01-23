@@ -14,6 +14,7 @@ const logger = require('../../src/util/log')
 
 jest.mock('js-yaml')
 jest.mock('@actions/core')
+logger.level = 'debug'
 
 describe('parseConfigFile', () => {
   afterEach(() => {

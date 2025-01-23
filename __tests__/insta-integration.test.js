@@ -718,9 +718,10 @@ describe('runApplication', () => {
     await expect(
       runApplication(runConf, configFolder, baseFolder, appIndex, true)
     ).rejects.toThrow('Application 1 exited with code 127')
-    expect(logger.error).toHaveBeenCalledWith(
-      'Failed to run application/job, command=invalid_command'
-    )
+    expect(logger.error).toHaveBeenCalledWith({
+      command: 'invalid_command',
+      message: 'Failed to run application/job'
+    })
   })
 
   it('returns null if no command is defined', async () => {
