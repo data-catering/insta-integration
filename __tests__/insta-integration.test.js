@@ -716,9 +716,11 @@ describe('runApplication', () => {
     const baseFolder = '/tmp/insta-integration-test/base'
     const appIndex = 1
     await expect(
-      await runApplication(runConf, configFolder, baseFolder, appIndex, true)
-    ).not.toBeNull()
-    // expect(logger.error).toHaveBeenCalledWith('Application 1 failed with error')
+      runApplication(runConf, configFolder, baseFolder, appIndex, true)
+    ).rejects.toThrow('Application 1 exited with code 127')
+    expect(logger.error).toHaveBeenCalledWith(
+      'Failed to run application/job, command=invalid_command'
+    )
   })
 
   it('returns null if no command is defined', async () => {

@@ -271,7 +271,7 @@ can be found below.
 | configuration_file   | File path to configuration file                                                                                                       | `insta-integration.yaml`                 |
 | insta_infra_folder   | Folder path to insta-infra ([this repository](https://github.com/data-catering/insta-infra))                                          | `${HOME}/.insta-integration/insta-infra` |
 | base_folder          | Folder path to use for execution files                                                                                                | `${HOME}/.insta-integration`             |
-| data_caterer_version | Version of data-caterer Docker image                                                                                                  | `0.14.2`                                 |
+| data_caterer_version | Version of data-caterer Docker image                                                                                                  | `0.14.3`                                 |
 | data_caterer_user    | User for data-caterer. If you don't have one yet, [create one here](https://data.catering/latest/get-started/quick-start/#get-token)  | <empty>                                  |
 | data_caterer_token   | Token for data-caterer. If you don't have one yet, [create one here](https://data.catering/latest/get-started/quick-start/#get-token) | <empty>                                  |
 
@@ -295,7 +295,7 @@ jobs:
           configuration_file: my/custom/folder/insta-integration.yaml
           insta_infra_folder: insta-infra/folder
           base_folder: execution/folder
-          data_caterer_version: 0.14.2
+          data_caterer_version: 0.14.3
           data_caterer_user: ${{ secrets.DATA_CATERER_USER }}
           data_caterer_token: ${{ secrets.DATA_CATERER_TOKEN }}
 ```
