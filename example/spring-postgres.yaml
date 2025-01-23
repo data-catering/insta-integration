@@ -1,0 +1,51 @@
+services:
+  - name: postgres
+    data: my-data/sql
+run:
+  - command: ./gradlew bootRun
+    test:
+      relationship:
+        postgres_transactions.account_number:
+          - http_transactions.tmp_accountNumber
+      generation:
+        postgres:
+          - name: postgres_transactions
+            options:
+              dbtable: account.transactions
+            fields:
+              - name: account_number
+                options:
+                  regex: ACC[0-9]{8}
+              - name: create_time
+                type: timestamp
+              - name: transaction_id
+              - name: amount
+                type: double
+        http:
+          - name: http_transactions
+            options:
+              validationIdentifier: GET/account/{accountNumber}/transactions
+            fields:
+              - name: httpUrl
+                fields:
+                  - name: url
+                    static: http://localhost:8080/account/{accountNumber}/transactions
+                  - name: method
+                    static: GET
+                  - name: pathParams
+                    fields:
+                      - name: accountNumber
+                        options:
+                          sql: tmp_accountNumber
+              - name: tmp_accountNumber
+                options:
+                  omit: true
+      validation:
+        http:
+          - options:
+              validationIdentifier: GET/account/{accountNumber}/transactions
+            validations:
+              - expr: request.method == 'GET'
+              - expr: response.timeTaken < 100
+              - expr: response.headers.Content-Type == 'application/json'
+              - expr: response.body.account_number matches 'ACC[0-9]{8}'

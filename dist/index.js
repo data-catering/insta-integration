@@ -22033,57 +22033,71 @@ async function runApplication(
     }
     try {
       const logFile = `${logsFolder}/app_output_${appIndex}.log`
-      const logStream = fs.createWriteStream(logFile, { flags: 'w+' })
-      // Run in the background
-      const runApp = spawn(runConf.command, [], {
-        cwd: configFolder,
-        shell: true
+      const resultPromise = new Promise((resolve, reject) => {
+        const logStream = fs.createWriteStream(logFile, { flags: 'w+' })
+        // Run in the background
+        const runApp = spawn(runConf.command, [], {
+          cwd: configFolder,
+          shell: true
+        })
+        runApp.stdout.pipe(logStream)
+        runApp.stderr.pipe(logStream)
+
+        runApp.on('error', function (err) {
+          logger.error(`Application ${appIndex} failed with error`, err)
+          logStream.end()
+          showLogFileContent(logFile)
+          reject(err)
+        })
+        runApp.on('close', function (code) {
+          logger.info(`Application ${appIndex} exited with code ${code}`)
+          logStream.end()
+          showLogFileContent(logFile)
+          if (code !== 0) {
+            reject(
+              new Error(`Application ${appIndex} exited with code ${code}`)
+            )
+          } else {
+            resolve(runApp)
+          }
+        })
+
+        if (!waitForFinish) {
+          logger.debug('Not waiting for application to finish')
+          resolve(runApp)
+        }
       })
-      runApp.stdout.pipe(logStream)
-      runApp.stderr.pipe(logStream)
+        // eslint-disable-next-line github/no-then
+        .then(runApp => {
+          logger.debug({
+            message: `Application command was successful`,
+            command: runConf.command
+          })
+          return runApp
+        })
+        // eslint-disable-next-line github/no-then
+        .catch(error => {
+          logger.error({
+            message: `Application command failed`,
+            command: runConf.command,
+            error
+          })
+          throw new Error(error)
+        })
 
       if (waitForFinish) {
         logger.info({
           message: 'Waiting for command to finish',
           command: runConf.command
         })
-        await new Promise((resolve, reject) => {
-          runApp.on('error', function (err) {
-            logger.error(`Application ${appIndex} failed with error`, err)
-            logStream.end()
-            showLogFileContent(logFile)
-            reject(err)
-          })
-          runApp.on('close', function (code) {
-            logger.info(`Application ${appIndex} exited with code ${code}`)
-            logStream.end()
-            showLogFileContent(logFile)
-            if (code !== 0) {
-              reject(
-                new Error(`Application ${appIndex} exited with code ${code}`)
-              )
-            } else {
-              resolve()
-            }
-          })
-        })
-      } else {
-        runApp.on('error', function (err) {
-          logger.error(`Application ${appIndex} failed with error`, err)
-          logStream.end()
-          showLogFileContent(logFile)
-          throw err
-        })
-        runApp.on('close', function (code) {
-          logger.info(`Application ${appIndex} exited with code ${code}`)
-          logStream.end()
-          showLogFileContent(logFile)
-        })
+        await resultPromise
       }
-
-      return { runApp, logStream }
+      return { resultPromise }
     } catch (error) {
-      logger.error(`Failed to run application/job, command=${runConf.command}`)
+      logger.error({
+        message: 'Failed to run application/job',
+        command: runConf.command
+      })
       throw new Error(error)
     }
   } else {
@@ -22188,7 +22202,6 @@ async function runTests(parsedConfig, configFileDirectory, config) {
           `Test result file does not exist, unable to show test results, file=${testResultsFile}`
         )
       }
-      shutdownApplication(applicationProcess)
     }
     await cleanAppDoneFiles(parsedConfig, sharedFolder)
   }
@@ -22422,7 +22435,7 @@ async function run() {
     logger.debug(`Using data-caterer version: ${config.dataCatererVersion}`)
     const result = runIntegrationTests(config)
     // eslint-disable-next-line github/no-then
-    return result.then(() => {
+    return await result.then(() => {
       logger.info('insta-integration run completed')
     })
   } catch (error) {
@@ -23011,18 +23024,20 @@ async function checkFileExistsWithTimeout(filePath, appIndex, timeout = 60000) {
 }
 
 function showLogFileContent(logFile) {
-  logger.debug('Showing application logs')
-  if (fs.existsSync(logFile)) {
-    const logFileContent = fs.readFileSync(logFile).toString()
-    // eslint-disable-next-line github/array-foreach
-    logFileContent.split('\n').forEach(logLine => {
-      logger.debug(logLine)
-    })
-  } else {
-    logger.error(
-      'Unable to show log file content, log file does not exist, log-file=',
-      logFile
-    )
+  if (logger.isDebugEnabled()) {
+    logger.debug('Showing application logs')
+    if (fs.existsSync(logFile)) {
+      const logFileContent = fs.readFileSync(logFile).toString()
+      // eslint-disable-next-line github/array-foreach
+      logFileContent.split('\n').forEach(logLine => {
+        logger.debug(logLine)
+      })
+    } else {
+      logger.error(
+        'Unable to show log file content, log file does not exist, log-file=',
+        logFile
+      )
+    }
   }
 }
 

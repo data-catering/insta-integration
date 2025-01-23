@@ -479,7 +479,8 @@
                     "iceberg",
                     "json",
                     "orc",
-                    "parquet"
+                    "parquet",
+                    "http"
                   ]
                 },
                 "additionalProperties": {

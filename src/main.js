@@ -108,7 +108,7 @@ async function run() {
     logger.debug(`Using data-caterer version: ${config.dataCatererVersion}`)
     const result = runIntegrationTests(config)
     // eslint-disable-next-line github/no-then
-    return result.then(() => {
+    return await result.then(() => {
       logger.info('insta-integration run completed')
     })
   } catch (error) {
