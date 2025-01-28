@@ -21,7 +21,7 @@ program
   .option(
     '-d, --data-caterer-version <version>',
     'Version of data-caterer Docker image',
-    '0.14.3'
+    '0.14.5'
   )
   .option('-u, --data-caterer-user <user>', 'User for data-caterer', '')
   .option('-t, --data-caterer-token <token>', 'Token for data-caterer', '')
