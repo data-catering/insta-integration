@@ -565,7 +565,6 @@ async function runTests(parsedConfig, configFileDirectory, config) {
           `Test result file does not exist, unable to show test results, file=${testResultsFile}`
         )
       }
-      shutdownApplication(applicationProcess)
     }
     await cleanAppDoneFiles(parsedConfig, sharedFolder)
   }
