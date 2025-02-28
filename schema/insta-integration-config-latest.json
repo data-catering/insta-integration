@@ -457,12 +457,13 @@
                 "type": "object",
                 "description": "Define any relationships between data generation data sources. For example, 'account_number' field being the same across two Postgres tables accounts and balances.",
                 "patternProperties": {
-                  "^.+\\|\\|.+(\\|\\|.+)?$": {
+                  "^[^|]+\\|\\|[^|]+(\\|\\|[^|]+)?$": {
                     "type": "array",
                     "items": {
                       "type": "string",
-                      "description": "Uses the pattern: '<name of generation>.<field name>'",
-                      "pattern": "^.+\\|\\|.+(\\|\\|.+)?$"
+                      "description": "Uses the pattern: '<name of generation>.<field name>' or '<name of data source>.<name of generation>.<field name>'",
+                      "pattern": "^[^|]+\\|\\|[^|]+(\\|\\|[^|]+)?$",
+                      "examples": ["postgres_transaction||account_number", "http||POST/pets||body.id"]
                     }
                   }
                 },

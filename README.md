@@ -45,7 +45,7 @@ To use this GitHub Action, you need to get a username and token from
        runs-on: ubuntu-latest
        steps:
          - name: Run integration tests
-           uses: data-catering/insta-integration@v2
+           uses: data-catering/insta-integration@v3
            with:
              data_caterer_user: ${{ secrets.DATA_CATERER_USER }}
              data_caterer_token: ${{ secrets.DATA_CATERER_TOKEN }}
@@ -129,10 +129,11 @@ The following data sources are available to generate/validate data.
 <summary>Click here</summary>
 
 | Data Source Type | Data Source                        | Support |
-| ---------------- | ---------------------------------- | ------- |
+| ---------------- |------------------------------------| ------- |
 | Cloud Storage    | AWS S3                             | ✅      |
 | Cloud Storage    | Azure Blob Storage                 | ✅      |
 | Cloud Storage    | GCP Cloud Storage                  | ✅      |
+| Database         | BigQuery                           | ✅      |
 | Database         | Cassandra                          | ✅      |
 | Database         | MySQL                              | ✅      |
 | Database         | Postgres                           | ✅      |
@@ -148,10 +149,10 @@ The following data sources are available to generate/validate data.
 | File             | Hudi                               | ❌      |
 | HTTP             | REST API                           | ✅      |
 | Messaging        | Kafka                              | ✅      |
+| Messaging        | RabbitMQ                           | ✅      |
 | Messaging        | Solace                             | ✅      |
 | Messaging        | ActiveMQ                           | ❌      |
 | Messaging        | Pulsar                             | ❌      |
-| Messaging        | RabbitMQ                           | ❌      |
 | Metadata         | Data Contract CLI                  | ✅      |
 | Metadata         | Great Expectations                 | ✅      |
 | Metadata         | Marquez                            | ✅      |
@@ -349,7 +350,11 @@ Validate the JSON Schema:
 ajv compile --spec=draft2019 -s schema/insta-integration-config-latest.json
 ```
 
-Validate a `insta-integration.yaml` file:
+#### Validate YAML file
+
+You can run `npm run validate-yaml` and it will validate all the YAML files under the `examples` directory.
+
+Otherwise, if you have a different pathway, validate via `ajv`:
 
 ```shell
 ajv validate --spec=draft2019 -s schema/insta-integration-config-latest.json -d example/postgres-to-csv.yaml

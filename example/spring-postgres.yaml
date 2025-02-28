@@ -27,12 +27,14 @@ run:
               validationIdentifier: GET/account/{accountNumber}/transactions
             fields:
               - name: httpUrl
+                type: struct
                 fields:
                   - name: url
                     static: http://localhost:8080/account/{accountNumber}/transactions
                   - name: method
                     static: GET
                   - name: pathParams
+                    type: struct
                     fields:
                       - name: accountNumber
                         options:
@@ -46,6 +48,6 @@ run:
               validationIdentifier: GET/account/{accountNumber}/transactions
             validations:
               - expr: request.method == 'GET'
-              - expr: response.timeTaken < 100
+              - expr: response.timeTakenMs < 100
               - expr: response.headers.Content-Type == 'application/json'
               - expr: response.body.account_number matches 'ACC[0-9]{8}'

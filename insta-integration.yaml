@@ -3,8 +3,8 @@ run:
   - command: echo 'hello world'
     test:
       relationship:
-        my_parquet.account_id:
-          - my_csv.account_id
+        my_parquet||account_id:
+          - my_csv||account_id
       generation:
         parquet:
           - name: my_parquet
