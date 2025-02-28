@@ -373,14 +373,14 @@ describe('extractRelationships', () => {
         currentPlan
       )
     }).toThrow(
-      'Relationship should follow pattern: <generation name>.<field name>'
+      'Relationship should follow pattern: <generation name>||<fields> or <data source>||<generation name>||<fields>, relationship=c'
     )
   })
 
   it('should throw an error when relationship is defined without generation', () => {
     testConfig = {
       relationship: {
-        'service.field': ['child.field']
+        'service||field': ['child||field']
       }
     }
     expect(() => {
@@ -395,7 +395,7 @@ describe('extractRelationships', () => {
   it('should correctly extract relationships and update currentPlan', () => {
     testConfig = {
       relationship: {
-        'parentTask.id': ['child1Task.parent_id', 'child2Task.parent_id']
+        'parentTask||id': ['child1Task||parent_id', 'child2Task||parent_id']
       },
       generation: {
         parent: [{ name: 'parentTask' }],
@@ -438,11 +438,56 @@ describe('extractRelationships', () => {
     ])
   })
 
+  it('should correctly extract relationships with 3 part format and update currentPlan', () => {
+    testConfig = {
+      relationship: {
+        'http||POST/pet||body.id': [
+          'http||GET/pet/{id}||pathParamid',
+          'http||DELETE/pet/{id}||pathParamid'
+        ]
+      },
+      generation: {
+        http: [{ name: 'parentTask' }]
+      }
+    }
+    generationTaskToServiceMapping = {
+      parentTask: 'http'
+    }
+
+    extractRelationships(
+      testConfig,
+      generationTaskToServiceMapping,
+      currentPlan
+    )
+
+    expect(currentPlan.sinkOptions.foreignKeys).toEqual([
+      {
+        source: {
+          dataSource: 'http',
+          step: 'POST/pet',
+          fields: ['body.id']
+        },
+        generate: [
+          {
+            dataSource: 'http',
+            step: 'GET/pet/{id}',
+            fields: ['pathParamid']
+          },
+          {
+            dataSource: 'http',
+            step: 'DELETE/pet/{id}',
+            fields: ['pathParamid']
+          }
+        ]
+      }
+    ])
+  })
+
   it('should handle multiple relationships', () => {
     testConfig = {
       relationship: {
-        'userTask.id': ['orderTask.user_id'],
-        'productTask.id': ['orderTask.product_id']
+        'userTask||id': ['orderTask||user_id'],
+        'productTask||id': ['orderTask||product_id']
       },
       generation: {
         user: [{ name: 'userTask' }],

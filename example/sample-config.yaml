@@ -10,8 +10,8 @@ run: #how to run your app/job, can run multiple, run in order
       APP_VERSION: 1.3.1
     test: #using data-caterer, generate and validate data
       relationship:
-        kafka_accounts.account_id:
-          - kafka_transactions.account_id
+        kafka_accounts||account_id:
+          - kafka_transactions||account_id
       generation:
         kafka: #name matches with service from above or could point to application (i.e. REST API)
           - name: kafka_accounts

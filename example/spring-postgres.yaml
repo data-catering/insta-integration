@@ -5,8 +5,8 @@ run:
   - command: ./gradlew bootRun
     test:
       relationship:
-        postgres_transactions.account_number:
-          - http_transactions.tmp_accountNumber
+        postgres_transactions||account_number:
+          - http_transactions||tmp_accountNumber
       generation:
         postgres:
           - name: postgres_transactions

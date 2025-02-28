@@ -36,7 +36,7 @@ describe('getDataCatererVersion', () => {
   })
 
   it('returns the default data caterer version if not provided', () => {
-    expect(getDataCatererVersion('')).toBe('0.14.5')
+    expect(getDataCatererVersion('')).toBe('0.15.2')
   })
 })
 
