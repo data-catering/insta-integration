@@ -9,8 +9,8 @@ run:
       mount:
         - ${PWD}/example/my-app/shared/generated:/opt/app/shared/generated
       relationship:
-        postgres_balance.account_number:
-          - postgres_transaction.account_number
+        postgres_balance||account_number:
+          - postgres_transaction||account_number
       generation:
         postgres:
           - name: postgres_transaction
@@ -48,6 +48,10 @@ run:
               path: /opt/app/shared/generated/balances.csv
               header: true
             validations:
+              - field: account_number
+                validation:
+                  - type: 'null'
+                    negate: true
               - expr: ISNOTNULL(account_number)
               - aggType: count
                 aggExpr: count == 1000

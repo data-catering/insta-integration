@@ -21807,6 +21807,37 @@ function extractDataGenerationTasks(
   }
 }
 
+function getForeignKeyFromRelationship(
+  relationship,
+  testConfig,
+  generationTaskToServiceMapping
+) {
+  const sptRelationship = relationship.split('||')
+  if (sptRelationship.length < 2 || sptRelationship.length > 3) {
+    throw new Error(
+      `Relationship should follow pattern: <generation name>||<fields> or <data source>||<generation name>||<fields>, relationship=${relationship}`
+    )
+  }
+
+  if (sptRelationship.length === 3) {
+    return {
+      dataSource: sptRelationship[0],
+      step: sptRelationship[1],
+      fields: sptRelationship[2].split(',')
+    }
+  } else {
+    return {
+      dataSource: extractServiceFromGeneration(
+        testConfig,
+        sptRelationship,
+        generationTaskToServiceMapping
+      ),
+      step: sptRelationship[0],
+      fields: sptRelationship[1].split(',')
+    }
+  }
+}
+
 function extractRelationships(
   testConfig,
   generationTaskToServiceMapping,
@@ -21815,45 +21846,21 @@ function extractRelationships(
   if (testConfig.relationship) {
     logger.debug('Checking for data generation relationship configurations')
     for (const rel of Object.entries(testConfig.relationship)) {
-      // Find the corresponding service name from generation tasks
-      // Also, validate that a generation task exists if relationship is defined
-      const sptRelationship = rel[0].split('.')
-      if (sptRelationship.length !== 2) {
-        throw new Error(
-          `Relationship should follow pattern: <generation name>.<field name>, relationship=${rel[0]}`
-        )
-      }
       if (testConfig.generation) {
-        const baseServiceName = extractServiceFromGeneration(
-          testConfig,
-          sptRelationship,
-          generationTaskToServiceMapping
-        )
         const childrenRelationshipServiceNames = []
         for (const childRel of rel[1]) {
-          const sptChildRelationship = childRel.split('.')
-          if (sptChildRelationship.length !== 2) {
-            throw new Error(
-              `Relationship should follow pattern: <generation name>.<field name>, relationship=${childRel}`
-            )
-          }
-          const childServiceName = extractServiceFromGeneration(
+          const foreignKeyRelation = getForeignKeyFromRelationship(
+            childRel,
             testConfig,
-            sptChildRelationship,
             generationTaskToServiceMapping
           )
-          const foreignKeyRelation = {
-            dataSource: childServiceName,
-            step: sptChildRelationship[0],
-            fields: sptChildRelationship[1].split(',')
-          }
           childrenRelationshipServiceNames.push(foreignKeyRelation)
         }
-        const sourceForeignKeyRelation = {
-          dataSource: baseServiceName,
-          step: sptRelationship[0],
-          fields: sptRelationship[1].split(',')
-        }
+        const sourceForeignKeyRelation = getForeignKeyFromRelationship(
+          rel[0],
+          testConfig,
+          generationTaskToServiceMapping
+        )
         currentPlan.sinkOptions.foreignKeys.push({
           source: sourceForeignKeyRelation,
           generate: childrenRelationshipServiceNames
@@ -22352,7 +22359,7 @@ function getBaseFolder(baseFolder) {
 }
 
 function getDataCatererVersion(dataCatererVersion) {
-  return !dataCatererVersion ? '0.14.5' : dataCatererVersion
+  return !dataCatererVersion ? '0.15.2' : dataCatererVersion
 }
 
 function getConfigurationItem(item, defaultValue, requiredNonEmpty = false) {

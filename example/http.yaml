@@ -1,0 +1,18 @@
+services:
+  - name: httpbin
+run:
+  - command: echo hello
+    test:
+      env:
+        ENABLE_GENERATE_PLAN_AND_TASKS: 'true'
+      relationship:
+        http||POST/pets||body.id:
+          - http||GET/pets/{id}||pathParamid
+          - http||DELETE/pets/{id}||pathParamid
+      generation:
+        http:
+          - options:
+              metadataSourceType: openApi
+              schemaLocation: https://raw.githubusercontent.com/data-catering/data-caterer-example/refs/heads/main/docker/mount/http/petstore.json
+            count:
+              records: 5
