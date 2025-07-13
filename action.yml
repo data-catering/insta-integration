@@ -49,6 +49,7 @@ runs:
       with:
         repository: 'data-catering/insta-infra'
         path: '${{ inputs.insta_infra_folder }}'
+        ref: 'v1.0.0'
     - name: 'Cache Docker images'
       id: 'docker-cache'
       uses: 'ScribeMD/docker-cache@0.5.0'
