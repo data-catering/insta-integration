@@ -14,11 +14,6 @@ Problems it can help with:
 
 ## Usage
 
-### Get Token
-
-To use this GitHub Action, you need to get a username and token from
-[data-catering](https://data.catering/latest/get-started/quick-start/#get-token).
-
 ### CLI
 
 1. Install via `npm install -g insta-integration`
@@ -47,8 +42,7 @@ To use this GitHub Action, you need to get a username and token from
          - name: Run integration tests
            uses: data-catering/insta-integration@v3
            with:
-             data_caterer_user: ${{ secrets.DATA_CATERER_USER }}
-             data_caterer_token: ${{ secrets.DATA_CATERER_TOKEN }}
+             data_caterer_version: 0.16.1
    ```
 
 1. Create YAML file `insta-integration.yaml` to define your integration tests
@@ -129,7 +123,7 @@ The following data sources are available to generate/validate data.
 <summary>Click here</summary>
 
 | Data Source Type | Data Source                        | Support |
-| ---------------- |------------------------------------| ------- |
+| ---------------- | ---------------------------------- | ------- |
 | Cloud Storage    | AWS S3                             | ✅      |
 | Cloud Storage    | Azure Blob Storage                 | ✅      |
 | Cloud Storage    | GCP Cloud Storage                  | ✅      |
@@ -267,14 +261,12 @@ run:
 Optional configurations to alter the files and folders used by the GitHub Action
 can be found below.
 
-| Name                 | Description                                                                                                                           | Default                                  |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| configuration_file   | File path to configuration file                                                                                                       | `insta-integration.yaml`                 |
-| insta_infra_folder   | Folder path to insta-infra ([this repository](https://github.com/data-catering/insta-infra))                                          | `${HOME}/.insta-integration/insta-infra` |
-| base_folder          | Folder path to use for execution files                                                                                                | `${HOME}/.insta-integration`             |
-| data_caterer_version | Version of data-caterer Docker image                                                                                                  | `0.15.2`                                 |
-| data_caterer_user    | User for data-caterer. If you don't have one yet, [create one here](https://data.catering/latest/get-started/quick-start/#get-token)  | <empty>                                  |
-| data_caterer_token   | Token for data-caterer. If you don't have one yet, [create one here](https://data.catering/latest/get-started/quick-start/#get-token) | <empty>                                  |
+| Name                 | Description                                                                                  | Default                                  |
+| -------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| configuration_file   | File path to configuration file                                                              | `insta-integration.yaml`                 |
+| insta_infra_folder   | Folder path to insta-infra ([this repository](https://github.com/data-catering/insta-infra)) | `${HOME}/.insta-integration/insta-infra` |
+| base_folder          | Folder path to use for execution files                                                       | `${HOME}/.insta-integration`             |
+| data_caterer_version | Version of data-caterer Docker image                                                         | `0.16.1`                                 |
 
 To use these configurations, alter your
 `.github/workflows/integration-test.yaml`.
@@ -296,9 +288,7 @@ jobs:
           configuration_file: my/custom/folder/insta-integration.yaml
           insta_infra_folder: insta-infra/folder
           base_folder: execution/folder
-          data_caterer_version: 0.15.2
-          data_caterer_user: ${{ secrets.DATA_CATERER_USER }}
-          data_caterer_token: ${{ secrets.DATA_CATERER_TOKEN }}
+          data_caterer_version: 0.16.1
 ```
 
 #### Output
@@ -352,7 +342,8 @@ ajv compile --spec=draft2019 -s schema/insta-integration-config-latest.json
 
 #### Validate YAML file
 
-You can run `npm run validate-yaml` and it will validate all the YAML files under the `examples` directory.
+You can run `npm run validate-yaml` and it will validate all the YAML files
+under the `examples` directory.
 
 Otherwise, if you have a different pathway, validate via `ajv`:
 

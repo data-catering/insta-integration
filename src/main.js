@@ -25,7 +25,7 @@ function getBaseFolder(baseFolder) {
 }
 
 function getDataCatererVersion(dataCatererVersion) {
-  return !dataCatererVersion ? '0.15.2' : dataCatererVersion
+  return !dataCatererVersion ? '0.16.1' : dataCatererVersion
 }
 
 function getConfigurationItem(item, defaultValue, requiredNonEmpty = false) {
@@ -52,8 +52,6 @@ function getConfiguration() {
   let instaInfraFolder = process.env.INSTA_INFRA_FOLDER
   let baseFolder = process.env.BASE_FOLDER
   let dataCatererVersion = process.env.DATA_CATERER_VERSION
-  let dataCatererUser = process.env.DATA_CATERER_USER
-  let dataCatererToken = process.env.DATA_CATERER_TOKEN
 
   logger.debug('Checking if GitHub Action properties defined')
   if (core) {
@@ -70,25 +68,13 @@ function getConfiguration() {
       'data_caterer_version',
       getDataCatererVersion(dataCatererVersion)
     )
-    dataCatererUser = getConfigurationItem(
-      'data_caterer_user',
-      dataCatererUser,
-      true
-    )
-    dataCatererToken = getConfigurationItem(
-      'data_caterer_token',
-      dataCatererToken,
-      true
-    )
   }
 
   return {
     applicationConfig,
     instaInfraFolder,
     baseFolder,
-    dataCatererVersion,
-    dataCatererUser,
-    dataCatererToken
+    dataCatererVersion
   }
 }
 

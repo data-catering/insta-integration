@@ -262,19 +262,8 @@ function extractDataValidations(testConfig, appIndex, currValidations) {
   }
 }
 
-function extractDataCatererEnv(testConfig, baseConfig) {
-  const allConfig = testConfig.env ? testConfig.env : {}
-  if (baseConfig.dataCatererUser) {
-    allConfig['DATA_CATERER_API_USER'] = baseConfig.dataCatererUser
-  } else {
-    throw new Error('No data caterer user defined')
-  }
-  if (baseConfig.dataCatererToken) {
-    allConfig['DATA_CATERER_API_TOKEN'] = baseConfig.dataCatererToken
-  } else {
-    throw new Error('No data caterer token defined')
-  }
-  return allConfig
+function extractDataCatererEnv(testConfig) {
+  return testConfig.env ? testConfig.env : {}
 }
 
 function runDataCaterer(
@@ -300,7 +289,7 @@ function runDataCaterer(
   )
   extractRelationships(testConfig, generationTaskToServiceMapping, currentPlan)
   extractDataValidations(testConfig, appIndex, currValidations)
-  const dataCatererEnv = extractDataCatererEnv(testConfig, baseConfig)
+  const dataCatererEnv = extractDataCatererEnv(testConfig)
 
   writeToFile(`${configurationFolder}/plan`, 'my-plan.yaml', currentPlan)
   fs.mkdirSync(`${configurationFolder}/task`, { recursive: true })

@@ -36,7 +36,7 @@ describe('getDataCatererVersion', () => {
   })
 
   it('returns the default data caterer version if not provided', () => {
-    expect(getDataCatererVersion('')).toBe('0.15.2')
+    expect(getDataCatererVersion('')).toBe('0.16.1')
   })
 })
 
@@ -47,8 +47,6 @@ describe('getConfiguration', () => {
     process.env.INSTA_INFRA_FOLDER = '/infra'
     process.env.BASE_FOLDER = '/base'
     process.env.DATA_CATERER_VERSION = '1.0.0'
-    process.env.DATA_CATERER_USER = 'user'
-    process.env.DATA_CATERER_TOKEN = 'token'
   })
 
   it('returns the configuration from environment variables', () => {
@@ -57,9 +55,7 @@ describe('getConfiguration', () => {
       applicationConfig: 'config.json',
       instaInfraFolder: '/infra',
       baseFolder: '/base',
-      dataCatererVersion: '1.0.0',
-      dataCatererUser: 'user',
-      dataCatererToken: 'token'
+      dataCatererVersion: '1.0.0'
     })
   })
 
@@ -69,9 +65,7 @@ describe('getConfiguration', () => {
         configuration_file: 'input_config.json',
         insta_infra_folder: '/input_infra',
         base_folder: '/input_base',
-        data_caterer_version: '2.0.0',
-        data_caterer_user: 'input_user',
-        data_caterer_token: 'input_token'
+        data_caterer_version: '2.0.0'
       }
       return inputs[name] || ''
     })
@@ -80,9 +74,7 @@ describe('getConfiguration', () => {
       applicationConfig: 'input_config.json',
       instaInfraFolder: '/input_infra',
       baseFolder: '/input_base',
-      dataCatererVersion: '2.0.0',
-      dataCatererUser: 'input_user',
-      dataCatererToken: 'input_token'
+      dataCatererVersion: '2.0.0'
     })
   })
 })

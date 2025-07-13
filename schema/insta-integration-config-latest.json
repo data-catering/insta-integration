@@ -463,7 +463,10 @@
                       "type": "string",
                       "description": "Uses the pattern: '<name of generation>.<field name>' or '<name of data source>.<name of generation>.<field name>'",
                       "pattern": "^[^|]+\\|\\|[^|]+(\\|\\|[^|]+)?$",
-                      "examples": ["postgres_transaction||account_number", "http||POST/pets||body.id"]
+                      "examples": [
+                        "postgres_transaction||account_number",
+                        "http||POST/pets||body.id"
+                      ]
                     }
                   }
                 },

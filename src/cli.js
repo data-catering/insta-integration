@@ -4,7 +4,7 @@ const { program } = require('commander')
 const { run } = require('./main')
 
 program
-  .version('1.1.3')
+  .version('1.1.4')
   .description(
     'insta-integration CLI - Simple integration testing for any application or job'
   )
@@ -21,10 +21,8 @@ program
   .option(
     '-d, --data-caterer-version <version>',
     'Version of data-caterer Docker image',
-    '0.15.2'
+    '0.16.1'
   )
-  .option('-u, --data-caterer-user <user>', 'User for data-caterer', '')
-  .option('-t, --data-caterer-token <token>', 'Token for data-caterer', '')
   .option(
     '-i, --insta-infra-folder <folder>',
     'Folder pathway to insta-infra repository',
@@ -42,12 +40,6 @@ program
     }
     if (options.dataCatererVersion) {
       process.env.DATA_CATERER_VERSION = options.dataCatererVersion
-    }
-    if (options.dataCatererUser) {
-      process.env.DATA_CATERER_USER = options.dataCatererUser
-    }
-    if (options.dataCatererToken) {
-      process.env.DATA_CATERER_TOKEN = options.dataCatererToken
     }
     run()
   })
