@@ -27,12 +27,10 @@ describe('runDockerImage', () => {
     expect(() => runDockerImage('docker run my-image', 1)).toThrow(
       'command failed'
     )
-    expect(logger.error).toHaveBeenCalledWith(
-      'Failed to run data caterer docker image'
-    )
-    expect(logger.error).toHaveBeenCalledWith(
-      'Failed to retrieve container logs, container-name=',
-      'data-caterer-1'
+    expect(logger.logError).toHaveBeenCalledWith(
+      '[Docker]',
+      'Failed to run data-caterer container',
+      expect.any(Error)
     )
     expect(core.setFailed).toHaveBeenCalledWith(new Error('command failed'))
   })
@@ -101,6 +99,15 @@ describe('waitForContainerToFinish', () => {
     await waitForContainerToFinish('my-container')
     expect(execSync).toHaveBeenCalledWith(
       'docker ps -q -f name=my-container -f status=exited'
+    )
+  })
+
+  it('should reject when isContainerFinished throws an error', async () => {
+    execSync.mockImplementation(() => {
+      throw new Error('Docker command failed')
+    })
+    await expect(waitForContainerToFinish('my-container')).rejects.toThrow(
+      'Docker command failed'
     )
   })
 })

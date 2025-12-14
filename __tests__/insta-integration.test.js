@@ -5,7 +5,8 @@ const {
   extractRelationships,
   extractServiceNamesAndEnv,
   shutdownApplication,
-  runApplication
+  runApplication,
+  isRunGenerationFirst
 } = require('../src/insta-integration')
 const logger = require('../src/util/log')
 const { expect } = require('@jest/globals')
@@ -185,7 +186,7 @@ describe('extractServiceFromGeneration', () => {
         generationTaskToServiceMapping
       )
     }).toThrow(
-      'Relationship defined without corresponding generation task, relationship=nonExistentTask'
+      'Relationship defined without corresponding generation task: nonExistentTask'
     )
   })
 
@@ -233,7 +234,7 @@ describe('extractServiceFromGeneration', () => {
         generationTaskToServiceMapping
       )
     }).toThrow(
-      'Relationship defined without corresponding generation task, relationship=undefined'
+      'Relationship defined without corresponding generation task: undefined'
     )
   })
 })
@@ -373,7 +374,7 @@ describe('extractRelationships', () => {
         currentPlan
       )
     }).toThrow(
-      'Relationship should follow pattern: <generation name>||<fields> or <data source>||<generation name>||<fields>, relationship=c'
+      'Invalid relationship format (expected: <name>||<fields> or <source>||<name>||<fields>): child.field'
     )
   })
 
@@ -732,8 +733,13 @@ describe('runApplication', () => {
       true
     )
     expect(result).not.toBeNull()
-    expect(logger.info).toHaveBeenCalledWith('Running application/job')
-    expect(logger.info).toHaveBeenCalledWith('Application 1 exited with code 0')
+    expect(logger.info).toHaveBeenCalledWith(
+      '[App] Running application (index: 1)'
+    )
+    expect(logger.logSuccess).toHaveBeenCalledWith(
+      '[App]',
+      'Application 1 completed (exit code: 0)'
+    )
   })
 
   it('runs the application without waiting for it to finish', async () => {
@@ -752,7 +758,31 @@ describe('runApplication', () => {
       false
     )
     expect(result).not.toBeNull()
-    expect(logger.info).toHaveBeenCalledWith('Running application/job')
+    expect(logger.info).toHaveBeenCalledWith(
+      '[App] Running application (index: 1)'
+    )
+  })
+
+  it('returns runApp object that can be used with shutdownApplication', async () => {
+    const runConf = {
+      command: 'sleep 10',
+      commandWaitForFinish: false
+    }
+    const configFolder = '/tmp/insta-integration-test/config'
+    const baseFolder = '/tmp/insta-integration-test/base'
+    const appIndex = 1
+    const result = await runApplication(
+      runConf,
+      configFolder,
+      baseFolder,
+      appIndex,
+      false
+    )
+    expect(result).not.toBeNull()
+    expect(result.runApp).toBeDefined()
+    expect(typeof result.runApp.kill).toBe('function')
+    // Clean up - kill the sleep process
+    result.runApp.kill()
   })
 
   it('throws an error if the command fails', async () => {
@@ -763,10 +793,10 @@ describe('runApplication', () => {
     await expect(
       runApplication(runConf, configFolder, baseFolder, appIndex, true)
     ).rejects.toThrow('Application 1 exited with code 127')
-    expect(logger.error).toHaveBeenCalledWith({
-      command: 'invalid_command',
-      message: 'Failed to run application/job'
-    })
+    expect(logger.logError).toHaveBeenCalledWith(
+      '[App]',
+      'Application 1 exited with code 127'
+    )
   })
 
   it('returns null if no command is defined', async () => {
@@ -782,7 +812,39 @@ describe('runApplication', () => {
       true
     )
     expect(result).toBeNull()
-    expect(logger.debug).toHaveBeenCalledWith('No command defined')
+    expect(logger.debug).toHaveBeenCalledWith('[App] No command defined')
+  })
+})
+
+describe('isRunGenerationFirst', () => {
+  it('returns true when generateFirst is undefined', () => {
+    const runConf = { test: {} }
+    expect(isRunGenerationFirst(runConf)).toBe(true)
+  })
+
+  it('returns true when generateFirst is boolean true with test defined', () => {
+    const runConf = { generateFirst: true, test: {} }
+    expect(isRunGenerationFirst(runConf)).toBe(true)
+  })
+
+  it('returns true when generateFirst is string "true" with test defined', () => {
+    const runConf = { generateFirst: 'true', test: {} }
+    expect(isRunGenerationFirst(runConf)).toBe(true)
+  })
+
+  it('returns false when generateFirst is boolean false', () => {
+    const runConf = { generateFirst: false, test: {} }
+    expect(isRunGenerationFirst(runConf)).toBe(false)
+  })
+
+  it('returns false when generateFirst is string "false"', () => {
+    const runConf = { generateFirst: 'false', test: {} }
+    expect(isRunGenerationFirst(runConf)).toBe(false)
+  })
+
+  it('returns false when generateFirst is true but test is not defined', () => {
+    const runConf = { generateFirst: true }
+    expect(isRunGenerationFirst(runConf)).toBe(false)
   })
 })
 
@@ -796,20 +858,21 @@ describe('shutdownApplication', () => {
     const applicationProcess = { runApp: { kill: jest.fn() } }
     shutdownApplication(applicationProcess)
     expect(applicationProcess.runApp.kill).toHaveBeenCalled()
-    expect(logger.debug).toHaveBeenCalledWith('Killing application now')
+    expect(logger.debug).toHaveBeenCalledWith('[App] Application terminated')
   })
 
   it('does not attempt to shut down if the application is already stopped', () => {
     const applicationProcess = { runApp: null }
     shutdownApplication(applicationProcess)
-    expect(logger.debug).toHaveBeenCalledWith('Application already stopped')
+    expect(logger.debug).toHaveBeenCalledWith(
+      '[App] Application already stopped'
+    )
   })
 
   it('does not attempt to shut down if the application process is null', () => {
     const applicationProcess = null
     shutdownApplication(applicationProcess)
-    expect(logger.debug).toHaveBeenCalledWith(
-      'Application process is null, not attempting to shutdown'
-    )
+    // When application process is null, shutdownApplication does nothing (no logs)
+    expect(logger.debug).not.toHaveBeenCalled()
   })
 })

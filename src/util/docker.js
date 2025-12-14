@@ -2,15 +2,16 @@ const { execSync } = require('child_process')
 const core = require('@actions/core')
 const logger = require('./log')
 
+const PREFIX = logger.PREFIX.DOCKER
+
 function runDockerImage(dockerCommand, appIndex) {
-  logger.debug(
-    `Running docker command for data-caterer, command=${dockerCommand}`
-  )
+  logger.debug(`${PREFIX} Running command: ${dockerCommand}`)
   try {
     execSync(dockerCommand)
+    logger.info(`${PREFIX} Container data-caterer-${appIndex} started`)
   } catch (error) {
-    logger.error('Failed to run data caterer docker image')
-    logger.info('Checking data-caterer logs')
+    logger.logError(PREFIX, 'Failed to run data-caterer container', error)
+    logger.info(`${PREFIX} Retrieving container logs for debugging...`)
     logOutContainerLogs(`data-caterer-${appIndex}`, false)
     core.setFailed(error)
     throw new Error(error)
@@ -19,32 +20,33 @@ function runDockerImage(dockerCommand, appIndex) {
 
 function removeContainer(containerName) {
   try {
-    // Check if there is a data-caterer container or not
     const dataCatererContainer = execSync(
       `docker ps -a -q -f name=^/${containerName}$`
     ).toString()
-    logger.debug(
-      `Result from checking docker for container: ${dataCatererContainer}`
-    )
     if (dataCatererContainer.length > 0) {
-      logger.debug(`Attempting to remove ${containerName} Docker container`)
+      logger.debug(`${PREFIX} Removing existing container: ${containerName}`)
       execSync(`docker rm ${containerName}`)
+      logger.debug(`${PREFIX} Container removed: ${containerName}`)
     }
   } catch (error) {
-    logger.warn(error)
+    logger.warn(
+      `${PREFIX} Could not remove container ${containerName}: ${error.message}`
+    )
   }
 }
 
 function createDockerNetwork() {
-  // Check if network is created, create if it isn't
   try {
     const networkDetails = execSync('docker network ls')
     if (!networkDetails.toString().includes('insta-infra_default')) {
-      logger.info('Creating docker network: insta-infra_default')
+      logger.info(`${PREFIX} Creating network: insta-infra_default`)
       execSync('docker network create insta-infra_default')
+      logger.debug(`${PREFIX} Network created successfully`)
+    } else {
+      logger.debug(`${PREFIX} Network insta-infra_default already exists`)
     }
   } catch (error) {
-    logger.error('Failed to check Docker network')
+    logger.logError(PREFIX, 'Failed to create Docker network', error)
     throw new Error(error)
   }
 }
@@ -54,29 +56,36 @@ function isContainerFinished(containerName) {
   const isExited = execSync(checkContainerExited)
   if (isExited.toString().length > 0) {
     logger.debug(
-      `${containerName} docker container has finished, checking for exit code`
+      `${PREFIX} Container ${containerName} has exited, checking exit code`
     )
     const exitedSuccessfully = execSync(`${checkContainerExited} -f exited=0`)
     if (exitedSuccessfully.toString().length > 0) {
-      logger.debug(`${containerName} docker container finished successfully`)
+      logger.info(`${PREFIX} Container ${containerName} completed successfully`)
     } else {
-      logger.error(
-        `${containerName} docker container has non-zero exit code, showing container logs`
+      logger.logError(
+        PREFIX,
+        `Container ${containerName} exited with non-zero code`
       )
+      logger.info(`${PREFIX} Container logs:`)
       logOutContainerLogs(containerName, false)
       throw new Error(`${containerName} docker container failed`)
     }
     return true
   } else {
-    logger.debug(`${containerName} docker container has not finished`)
+    logger.debug(`${PREFIX} Container ${containerName} still running`)
     return false
   }
 }
 
 function waitForContainerToFinish(containerName) {
-  const poll = resolve => {
-    if (isContainerFinished(containerName)) resolve()
-    else setTimeout(_ => poll(resolve), 500)
+  logger.info(`${PREFIX} Waiting for container ${containerName} to finish...`)
+  const poll = (resolve, reject) => {
+    try {
+      if (isContainerFinished(containerName)) resolve()
+      else setTimeout(() => poll(resolve, reject), 500)
+    } catch (error) {
+      reject(error)
+    }
   }
 
   return new Promise(poll)
@@ -85,18 +94,18 @@ function waitForContainerToFinish(containerName) {
 function logOutContainerLogs(containerName, isDebug = true) {
   try {
     const containerLogs = execSync(`docker logs ${containerName}`).toString()
+    const logFn = isDebug ? logger.debug.bind(logger) : logger.info.bind(logger)
     // eslint-disable-next-line github/array-foreach
     containerLogs.split('\n').forEach(line => {
-      if (isDebug) {
-        logger.debug(line)
-      } else {
-        logger.error(line)
+      if (line.trim()) {
+        logFn(`  ${line}`)
       }
     })
   } catch (e) {
-    logger.error(
-      'Failed to retrieve container logs, container-name=',
-      containerName
+    logger.logError(
+      PREFIX,
+      `Failed to retrieve logs for container ${containerName}`,
+      e
     )
   }
 }

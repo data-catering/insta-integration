@@ -28,6 +28,11 @@ const {
   checkFileExistsWithTimeout
 } = require('./util/file')
 
+const PREFIX_CONFIG = logger.PREFIX.CONFIG
+const PREFIX_APP = logger.PREFIX.APP
+const PREFIX_DATA_GEN = logger.PREFIX.DATA_GEN
+const PREFIX_VALIDATION = logger.PREFIX.VALIDATION
+
 /**
  * From the parsed YAML configuration, extract services to run along with environment variables
  * @param parsedConfig  YAML configuration
@@ -35,17 +40,18 @@ const {
  * @returns {{envVars: {}, serviceNames: *[]}}
  */
 function extractServiceNamesAndEnv(parsedConfig, configFileDirectory) {
-  // For each service defined, download any data required, pass service names and versions to insta-infra
   const serviceNames = []
   const envVars = {}
   if (parsedConfig.services) {
+    logger.debug(
+      `${PREFIX_CONFIG} Processing ${parsedConfig.services.length} service(s)`
+    )
     for (const service of parsedConfig.services) {
       let serviceName = service.name
-      logger.debug(`Parsing config for service=${serviceName}`)
+      logger.debug(`${PREFIX_CONFIG} Configuring service: ${serviceName}`)
       let envServiceName = serviceName.toUpperCase()
       const sptName = serviceName.split(':')
 
-      // If there is 2 parts, version of service has been explicitly defined
       if (sptName.length >= 2) {
         serviceName = sptName[0]
         serviceNames.push(serviceName)
@@ -57,38 +63,28 @@ function extractServiceNamesAndEnv(parsedConfig, configFileDirectory) {
       }
 
       if (service.env) {
-        // Add any additional environment variables required
         for (const kv of Object.entries(service.env)) {
           envVars[kv[0]] = kv[1]
         }
-      } else {
-        logger.debug(
-          `No environment variables defined for service=${serviceName}`
-        )
       }
 
       if (service.data) {
-        // service.data could be a URL, directory or single file
         const downloadLinkRegex = new RegExp('^http[s?]://.*$')
         if (downloadLinkRegex.test(service.data)) {
-          // TODO Then we need to download directory or file
-          logger.info('Downloading data is currently unsupported')
+          logger.warn(
+            `${PREFIX_CONFIG} URL data sources not yet supported: ${service.data}`
+          )
         } else if (service.data.startsWith('/')) {
           envVars[`${envServiceName}_DATA`] = service.data
         } else {
-          // Can be a relative directory from perspective of config YAML
           const dataPath = `${configFileDirectory}/${service.data}`
-          logger.debug(`Using env var: ${envServiceName}_DATA -> ${dataPath}`)
+          logger.debug(`${PREFIX_CONFIG} Service data path: ${dataPath}`)
           envVars[`${envServiceName}_DATA`] = dataPath
         }
-      } else {
-        logger.debug(
-          `No custom data at startup used for service=${serviceName}`
-        )
       }
     }
   } else {
-    logger.debug('No services defined')
+    logger.debug(`${PREFIX_CONFIG} No services defined`)
   }
   return { serviceNames, envVars }
 }
@@ -100,11 +96,13 @@ function extractServiceFromGeneration(
 ) {
   if (generationTaskToServiceMapping[sptRelationship[0]] !== undefined) {
     const service = generationTaskToServiceMapping[sptRelationship[0]]
-    logger.debug(`Found corresponding generation task, service=${service}`)
+    logger.debug(
+      `${PREFIX_DATA_GEN} Mapped generation task to service: ${service}`
+    )
     return service
   } else {
     throw new Error(
-      `Relationship defined without corresponding generation task, relationship=${sptRelationship[0]}`
+      `Relationship defined without corresponding generation task: ${sptRelationship[0]}`
     )
   }
 }
@@ -116,8 +114,11 @@ function extractDataGenerationTasks(
   generationTaskToServiceMapping
 ) {
   if (testConfig.generation) {
-    logger.debug('Checking for data generation configurations')
-    for (const dataSourceGeneration of Object.entries(testConfig.generation)) {
+    const genEntries = Object.entries(testConfig.generation)
+    logger.debug(
+      `${PREFIX_DATA_GEN} Processing ${genEntries.length} generation task(s)`
+    )
+    for (const dataSourceGeneration of genEntries) {
       const task = baseTask()
       for (const generationTask of dataSourceGeneration[1]) {
         const taskName = `${dataSourceGeneration[0]}-task`
@@ -154,7 +155,6 @@ function extractDataGenerationTasks(
       currentTasks.push(task)
     }
 
-    // Need to add data gen task to notify this process that data caterer is done generating data and application can run
     if (currentPlan.tasks.some(t => t.dataSourceName === 'csv')) {
       const csvTask = currentTasks.find(t => t.name === 'csv-task')
       csvTask.steps.push(notifyGenerationDoneTask())
@@ -166,7 +166,7 @@ function extractDataGenerationTasks(
       })
     }
   } else {
-    logger.debug('No data generation tasks defined')
+    logger.debug(`${PREFIX_DATA_GEN} No generation tasks defined`)
   }
 }
 
@@ -178,7 +178,7 @@ function getForeignKeyFromRelationship(
   const sptRelationship = relationship.split('||')
   if (sptRelationship.length < 2 || sptRelationship.length > 3) {
     throw new Error(
-      `Relationship should follow pattern: <generation name>||<fields> or <data source>||<generation name>||<fields>, relationship=${relationship}`
+      `Invalid relationship format (expected: <name>||<fields> or <source>||<name>||<fields>): ${relationship}`
     )
   }
 
@@ -207,8 +207,11 @@ function extractRelationships(
   currentPlan
 ) {
   if (testConfig.relationship) {
-    logger.debug('Checking for data generation relationship configurations')
-    for (const rel of Object.entries(testConfig.relationship)) {
+    const relEntries = Object.entries(testConfig.relationship)
+    logger.debug(
+      `${PREFIX_DATA_GEN} Processing ${relEntries.length} relationship(s)`
+    )
+    for (const rel of relEntries) {
       if (testConfig.generation) {
         const childrenRelationshipServiceNames = []
         for (const childRel of rel[1]) {
@@ -235,18 +238,19 @@ function extractRelationships(
       }
     }
   } else {
-    logger.debug('No relationships defined')
+    logger.debug(`${PREFIX_DATA_GEN} No relationships defined`)
   }
 }
 
 function extractDataValidations(testConfig, appIndex, currValidations) {
-  logger.debug('Checking for data validation configurations')
   if (testConfig.validation) {
-    for (const valid of Object.entries(testConfig.validation)) {
+    const validEntries = Object.entries(testConfig.validation)
+    logger.debug(
+      `${PREFIX_VALIDATION} Processing ${validEntries.length} validation(s)`
+    )
+    for (const valid of validEntries) {
       const currService = valid[0]
       const dataSourceValidations = valid[1]
-      // Check to see if a wait condition is already defined, else add in one
-      // to wait for tmp file to exist that is generated after application/job is run
       if (
         dataSourceValidations.length > 0 &&
         !dataSourceValidations[0].waitCondition
@@ -258,7 +262,7 @@ function extractDataValidations(testConfig, appIndex, currValidations) {
       currValidations.dataSources[currService] = dataSourceValidations
     }
   } else {
-    logger.debug('No data validations defined')
+    logger.debug(`${PREFIX_VALIDATION} No validations defined`)
   }
 }
 
@@ -273,9 +277,7 @@ function runDataCaterer(
   sharedFolder,
   baseConfig
 ) {
-  logger.info('Reading data generation and validation configurations')
-  // Use template plan and task YAML files
-  // Also, template application.conf
+  logger.info(`${PREFIX_DATA_GEN} Preparing data generation and validation`)
   const currentPlan = basePlan()
   const runId = currentPlan.runId
   const currentTasks = []
@@ -318,48 +320,45 @@ function runDataCaterer(
   )
 
   removeContainer(`data-caterer-${appIndex}`)
-  logger.info('Starting to run data generation and validation')
+  logger.info(`${PREFIX_DATA_GEN} Starting data-caterer container`)
   runDockerImage(dockerRunCommand, appIndex)
   return runId
 }
 
 async function waitForDataGeneration(testConfig, sharedFolder, appIndex) {
-  // For applications/jobs that rely on data to be generated first before running, we wait until data caterer has
-  // created a csv file to notify us that it has completed generating data
   if (
     testConfig.generation &&
     Object.entries(testConfig.generation).length > 0
   ) {
-    logger.info('Waiting for data generation to be completed')
+    logger.info(`${PREFIX_DATA_GEN} Waiting for data generation to complete...`)
     const notifyFilePath = `${sharedFolder}/notify/data-gen-done`
     fs.mkdirSync(`${sharedFolder}/notify`, { recursive: true })
     await checkFileExistsWithTimeout(notifyFilePath, appIndex)
     logOutContainerLogs(`data-caterer-${appIndex}`)
-    logger.debug('Removing data generation done folder')
+    logger.logSuccess(PREFIX_DATA_GEN, 'Data generation completed')
+    logger.debug(`${PREFIX_DATA_GEN} Cleaning up notification file`)
     try {
       fs.rmSync(notifyFilePath, {
         force: true
       })
     } catch (error) {
-      logger.warn(error)
+      logger.warn(
+        `${PREFIX_DATA_GEN} Could not remove notification file: ${error.message}`
+      )
     }
   } else {
-    logger.debug(
-      'No data generation defined, not waiting for data generation to be completed'
-    )
+    logger.debug(`${PREFIX_DATA_GEN} No generation tasks - skipping wait`)
   }
 }
 
 function setEnvironmentVariables(runConf) {
   if (runConf.env) {
+    const envCount = Object.entries(runConf.env).length
+    logger.debug(`${PREFIX_APP} Setting ${envCount} environment variable(s)`)
     for (const env of Object.entries(runConf.env)) {
-      logger.debug(
-        `Setting environment variable for application/job run, key=${env[0]}`
-      )
+      logger.debug(`${PREFIX_APP} Set env: ${env[0]}`)
       process.env[env[0]] = env[1]
     }
-  } else {
-    logger.debug('No environment variables set')
   }
 }
 
@@ -371,14 +370,19 @@ async function runApplication(
   waitForFinish
 ) {
   if (runConf.command) {
-    logger.info('Running application/job')
+    logger.info(`${PREFIX_APP} Running application (index: ${appIndex})`)
+    logger.debug(`${PREFIX_APP} Command: ${runConf.command}`)
     setEnvironmentVariables(runConf)
     const logsFolder = `${baseFolder}/logs`
     if (!fs.existsSync(logsFolder)) {
       try {
         fs.mkdirSync(logsFolder, { recursive: true })
       } catch (e) {
-        logger.error(`Failed to create logs folder, folder=${logsFolder}`)
+        logger.logError(
+          PREFIX_APP,
+          `Failed to create logs folder: ${logsFolder}`,
+          e
+        )
         throw new Error(e)
       }
     }
@@ -386,107 +390,111 @@ async function runApplication(
       try {
         fs.mkdirSync(configFolder, { recursive: true })
       } catch (e) {
-        logger.error(`Failed to create config folder, folder=${configFolder}`)
+        logger.logError(
+          PREFIX_APP,
+          `Failed to create config folder: ${configFolder}`,
+          e
+        )
         throw new Error(e)
       }
     }
     try {
       const logFile = `${logsFolder}/app_output_${appIndex}.log`
-      const resultPromise = new Promise((resolve, reject) => {
-        const logStream = fs.createWriteStream(logFile, { flags: 'w+' })
-        // Run in the background
-        const runApp = spawn(runConf.command, [], {
-          cwd: configFolder,
-          shell: true
-        })
-        runApp.stdout.pipe(logStream)
-        runApp.stderr.pipe(logStream)
+      const logStream = fs.createWriteStream(logFile, { flags: 'w+' })
+      const runApp = spawn(runConf.command, [], {
+        cwd: configFolder,
+        shell: true
+      })
+      runApp.stdout.pipe(logStream)
+      runApp.stderr.pipe(logStream)
 
+      const resultPromise = new Promise((resolve, reject) => {
         runApp.on('error', function (err) {
-          logger.error(`Application ${appIndex} failed with error`, err)
+          logger.logError(PREFIX_APP, `Application ${appIndex} failed`, err)
           logStream.end()
           showLogFileContent(logFile)
           reject(err)
         })
         runApp.on('close', function (code) {
-          logger.info(`Application ${appIndex} exited with code ${code}`)
           logStream.end()
           showLogFileContent(logFile)
           if (code !== 0) {
+            logger.logError(
+              PREFIX_APP,
+              `Application ${appIndex} exited with code ${code}`
+            )
             reject(
               new Error(`Application ${appIndex} exited with code ${code}`)
             )
           } else {
+            logger.logSuccess(
+              PREFIX_APP,
+              `Application ${appIndex} completed (exit code: 0)`
+            )
             resolve(runApp)
           }
         })
 
         if (!waitForFinish) {
-          logger.debug('Not waiting for application to finish')
+          logger.debug(`${PREFIX_APP} Running in background mode`)
           resolve(runApp)
         }
       })
         // eslint-disable-next-line github/no-then
-        .then(runApp => {
-          logger.debug({
-            message: `Application command was successful`,
-            command: runConf.command
-          })
-          return runApp
+        .then(app => {
+          logger.debug(`${PREFIX_APP} Command successful: ${runConf.command}`)
+          return app
         })
         // eslint-disable-next-line github/no-then
         .catch(error => {
-          logger.error({
-            message: `Application command failed`,
-            command: runConf.command,
+          logger.logError(
+            PREFIX_APP,
+            `Command failed: ${runConf.command}`,
             error
-          })
+          )
           throw new Error(error)
         })
 
       if (waitForFinish) {
-        logger.info({
-          message: 'Waiting for command to finish',
-          command: runConf.command
-        })
+        logger.info(`${PREFIX_APP} Waiting for application to complete...`)
         await resultPromise
       }
-      return { resultPromise }
+      return { resultPromise, runApp }
     } catch (error) {
-      logger.error({
-        message: 'Failed to run application/job',
-        command: runConf.command
-      })
+      logger.logError(
+        PREFIX_APP,
+        `Failed to run command: ${runConf.command}`,
+        error
+      )
       throw new Error(error)
     }
   } else {
-    logger.debug('No command defined')
+    logger.debug(`${PREFIX_APP} No command defined`)
     return null
   }
 }
 
 function shutdownApplication(applicationProcess) {
   if (applicationProcess !== null) {
-    logger.debug('Attempting to shut down application')
+    logger.debug(`${PREFIX_APP} Shutting down application`)
     if (applicationProcess && applicationProcess.runApp) {
-      logger.debug('Killing application now')
       applicationProcess.runApp.kill()
+      logger.debug(`${PREFIX_APP} Application terminated`)
     } else {
-      logger.debug(`Application already stopped`)
+      logger.debug(`${PREFIX_APP} Application already stopped`)
     }
-  } else {
-    logger.debug('Application process is null, not attempting to shutdown')
   }
 }
 
 function isRunGenerationFirst(runConf) {
+  const generateFirstValue = runConf.generateFirst
+  const isGenerateFirstTrue =
+    generateFirstValue === true || generateFirstValue === 'true'
   const generateFirstTrueWithTest =
-    typeof runConf.generateFirst !== 'undefined' &&
-    runConf.generateFirst === 'true' &&
-    runConf.test
-  return (
-    generateFirstTrueWithTest || typeof runConf.generateFirst === 'undefined'
-  )
+    typeof generateFirstValue !== 'undefined' &&
+    isGenerateFirstTrue &&
+    !!runConf.test
+  return generateFirstTrueWithTest || typeof generateFirstValue === 'undefined'
 }
 
 async function runTests(parsedConfig, configFileDirectory, config) {
@@ -500,8 +508,14 @@ async function runTests(parsedConfig, configFileDirectory, config) {
   setEnvironmentVariables(parsedConfig)
 
   if (parsedConfig.run) {
+    logger.info(
+      `${PREFIX_APP} Processing ${parsedConfig.run.length} test run(s)`
+    )
     await cleanAppDoneFiles(parsedConfig, sharedFolder)
     for (const [i, runConf] of parsedConfig.run.entries()) {
+      logger.info(
+        `${PREFIX_APP} ─── Test Run ${i + 1} of ${parsedConfig.run.length} ───`
+      )
       writeToFile(
         configurationFolder,
         'application.conf',
@@ -512,7 +526,9 @@ async function runTests(parsedConfig, configFileDirectory, config) {
       let applicationProcess
       let dataCatererRunId
       if (isRunGenerationFirst(runConf)) {
-        logger.debug('Running data generation first')
+        logger.debug(
+          `${PREFIX_APP} Mode: generate data first, then run application`
+        )
         dataCatererRunId = runDataCaterer(
           runConf.test,
           i,
@@ -521,7 +537,6 @@ async function runTests(parsedConfig, configFileDirectory, config) {
           config
         )
         await waitForDataGeneration(runConf.test, sharedFolder, i)
-        logger.debug('Running application after data generation')
         applicationProcess = await runApplication(
           runConf,
           configFileDirectory,
@@ -529,10 +544,14 @@ async function runTests(parsedConfig, configFileDirectory, config) {
           i,
           runConf.commandWaitForFinish
         )
-        logger.debug('Notifying data caterer that application is done')
+        logger.debug(
+          `${PREFIX_APP} Notifying data-caterer that application is done`
+        )
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
       } else {
-        logger.debug('Running application first')
+        logger.debug(
+          `${PREFIX_APP} Mode: run application first, then generate data`
+        )
         applicationProcess = await runApplication(
           runConf,
           configFileDirectory,
@@ -540,7 +559,6 @@ async function runTests(parsedConfig, configFileDirectory, config) {
           i,
           runConf.commandWaitForFinish
         )
-        logger.debug('Running data generation after application')
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
         dataCatererRunId = runDataCaterer(
           runConf.test,
@@ -550,15 +568,14 @@ async function runTests(parsedConfig, configFileDirectory, config) {
           config
         )
       }
-      // Wait for data caterer container to finish
       await waitForContainerToFinish(`data-caterer-${i}`)
-      // Check if file exists
       const testResultsFile = `${testResultsFolder}/${dataCatererRunId}/results.json`
       if (fs.existsSync(testResultsFile)) {
         testResults.push(JSON.parse(fs.readFileSync(testResultsFile, 'utf8')))
+        logger.debug(`${PREFIX_VALIDATION} Loaded results: ${testResultsFile}`)
       } else {
         logger.warn(
-          `Test result file does not exist, unable to show test results, file=${testResultsFile}`
+          `${PREFIX_VALIDATION} Results file not found: ${testResultsFile}`
         )
       }
     }
@@ -568,10 +585,11 @@ async function runTests(parsedConfig, configFileDirectory, config) {
 }
 
 function showTestResultSummary(testResults) {
-  let numRecordsGenerated = -1 //Start at -1 since 1 record is always generated
+  let numRecordsGenerated = -1
   let numSuccessValidations = 0
   let numFailedValidations = 0
   let numValidations = 0
+  const failedValidationDetails = []
 
   for (const testResult of testResults) {
     if (testResult.generation) {
@@ -587,39 +605,70 @@ function showTestResultSummary(testResults) {
         numFailedValidations +=
           validation.numValidations - validation.numSuccess
         if (validation.errorValidations) {
-          logger.info('Failed validation details')
           for (const errorValidation of validation.errorValidations) {
-            const baseLog = `Failed validation: validation=${JSON.stringify(errorValidation.validation)}, num-errors=${errorValidation.numErrors}`
-            if (
-              errorValidation.sampleErrorValues &&
-              Object.entries(errorValidation.sampleErrorValues).length > 0
-            ) {
-              logger.info(
-                `${baseLog}, sample-error-value=${JSON.stringify(errorValidation.sampleErrorValues[0])}`
-              )
-            } else {
-              logger.info(baseLog)
-            }
+            failedValidationDetails.push(errorValidation)
           }
         }
       }
     }
   }
-  const validationSuccessRate = numSuccessValidations / numValidations
-  logger.info('Test result summary')
-  logger.info(`Number of records generated: ${numRecordsGenerated}`)
-  logger.info(`Number of successful validations: ${numSuccessValidations}`)
-  logger.info(`Number of failed validations: ${numFailedValidations}`)
-  logger.info(`Number of validations: ${numValidations}`)
-  logger.info(`Validation success rate: ${validationSuccessRate * 100}%`)
+
+  const validationSuccessRate =
+    numValidations > 0
+      ? ((numSuccessValidations / numValidations) * 100).toFixed(1)
+      : 'N/A'
+
+  // Show failed validation details first if any
+  if (failedValidationDetails.length > 0) {
+    logger.info('')
+    logger.info(`${PREFIX_VALIDATION} Failed Validation Details:`)
+    for (const errorValidation of failedValidationDetails) {
+      const validationStr = JSON.stringify(errorValidation.validation)
+      logger.error(`${PREFIX_VALIDATION}   ✗ ${validationStr}`)
+      logger.error(
+        `${PREFIX_VALIDATION}     Errors: ${errorValidation.numErrors}`
+      )
+      if (
+        errorValidation.sampleErrorValues &&
+        Object.entries(errorValidation.sampleErrorValues).length > 0
+      ) {
+        logger.error(
+          `${PREFIX_VALIDATION}     Sample: ${JSON.stringify(errorValidation.sampleErrorValues[0])}`
+        )
+      }
+    }
+  }
+
+  // Summary section
+  const summaryData = {
+    'Records Generated': numRecordsGenerated >= 0 ? numRecordsGenerated : 0,
+    'Validations Run': numValidations,
+    'Validations Passed': numSuccessValidations,
+    'Validations Failed': numFailedValidations,
+    'Success Rate':
+      typeof validationSuccessRate === 'string'
+        ? validationSuccessRate
+        : `${validationSuccessRate}%`
+  }
+
+  logger.logSummary('Test Results', summaryData)
+
   if (process.env.GITHUB_ACTION) {
-    core.setOutput('num_records_generated', numRecordsGenerated)
+    core.setOutput(
+      'num_records_generated',
+      numRecordsGenerated >= 0 ? numRecordsGenerated : 0
+    )
     core.setOutput('num_success_validations', numSuccessValidations)
     core.setOutput('num_failed_validations', numFailedValidations)
     core.setOutput('num_validations', numValidations)
-    core.setOutput('validation_success_rate', validationSuccessRate)
+    core.setOutput(
+      'validation_success_rate',
+      numValidations > 0 ? numSuccessValidations / numValidations : 0
+    )
     core.setOutput('full_results', testResults)
   }
+
+  return numFailedValidations
 }
 
 /**
@@ -636,7 +685,7 @@ function showTestResultSummary(testResults) {
 async function runIntegrationTests(config) {
   if (config.instaInfraFolder.includes(' ')) {
     throw new Error(
-      `Invalid insta-infra folder pathway=${config.instaInfraFolder}`
+      `Invalid insta-infra folder path (contains spaces): ${config.instaInfraFolder}`
     )
   }
   const parsedConfig = parseConfigFile(config.applicationConfig)
@@ -651,7 +700,12 @@ async function runIntegrationTests(config) {
   )
 
   if (serviceNames.length > 0) {
+    logger.info(
+      `${logger.PREFIX.SERVICE} Starting ${serviceNames.length} service(s)`
+    )
     runServices(config.instaInfraFolder, serviceNames, envVars)
+  } else {
+    logger.debug(`${logger.PREFIX.SERVICE} No services to start`)
   }
 
   const testResultsPromise = runTests(
@@ -662,8 +716,10 @@ async function runIntegrationTests(config) {
 
   // eslint-disable-next-line github/no-then
   return testResultsPromise.then(testResults => {
-    logger.info('Finished tests!')
-    showTestResultSummary(testResults)
+    const numFailed = showTestResultSummary(testResults)
+    if (numFailed > 0) {
+      logger.warn(`${PREFIX_VALIDATION} ${numFailed} validation(s) failed`)
+    }
   })
 }
 
@@ -675,5 +731,6 @@ module.exports = {
   extractRelationships,
   extractServiceNamesAndEnv,
   shutdownApplication,
-  runApplication
+  runApplication,
+  isRunGenerationFirst
 }

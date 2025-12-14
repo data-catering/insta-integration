@@ -42,7 +42,7 @@ Problems it can help with:
          - name: Run integration tests
            uses: data-catering/insta-integration@v3
            with:
-             data_caterer_version: 0.16.1
+             data_caterer_version: 0.17.3
    ```
 
 1. Create YAML file `insta-integration.yaml` to define your integration tests
@@ -266,7 +266,7 @@ can be found below.
 | configuration_file   | File path to configuration file                                                              | `insta-integration.yaml`                 |
 | insta_infra_folder   | Folder path to insta-infra ([this repository](https://github.com/data-catering/insta-infra)) | `${HOME}/.insta-integration/insta-infra` |
 | base_folder          | Folder path to use for execution files                                                       | `${HOME}/.insta-integration`             |
-| data_caterer_version | Version of data-caterer Docker image                                                         | `0.16.1`                                 |
+| data_caterer_version | Version of data-caterer Docker image                                                         | `0.17.3`                                 |
 
 To use these configurations, alter your
 `.github/workflows/integration-test.yaml`.
@@ -288,7 +288,7 @@ jobs:
           configuration_file: my/custom/folder/insta-integration.yaml
           insta_infra_folder: insta-infra/folder
           base_folder: execution/folder
-          data_caterer_version: 0.16.1
+          data_caterer_version: 0.17.3
 ```
 
 #### Output

@@ -22348,7 +22348,7 @@ function getBaseFolder(baseFolder) {
 }
 
 function getDataCatererVersion(dataCatererVersion) {
-  return !dataCatererVersion ? '0.16.1' : dataCatererVersion
+  return !dataCatererVersion ? '0.17.3' : dataCatererVersion
 }
 
 function getConfigurationItem(item, defaultValue, requiredNonEmpty = false) {

@@ -28,6 +28,18 @@ describe('getBaseFolder', () => {
       'Base folder configuration is not defined'
     )
   })
+
+  it('uses actions input when default base folder is empty', () => {
+    core.getInput.mockReturnValueOnce('/from-actions-input')
+    expect(getBaseFolder('')).toBe('/from-actions-input')
+  })
+
+  it('throws an error when both input and default are empty', () => {
+    core.getInput.mockReturnValueOnce('')
+    expect(() => getBaseFolder('')).toThrow(
+      'Base folder configuration is not defined'
+    )
+  })
 })
 
 describe('getDataCatererVersion', () => {
@@ -36,7 +48,7 @@ describe('getDataCatererVersion', () => {
   })
 
   it('returns the default data caterer version if not provided', () => {
-    expect(getDataCatererVersion('')).toBe('0.16.1')
+    expect(getDataCatererVersion('')).toBe('0.17.3')
   })
 })
 
