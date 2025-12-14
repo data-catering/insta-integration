@@ -5,16 +5,25 @@ const yaml = require('js-yaml')
 const core = require('@actions/core')
 const fs = require('fs')
 
+const PREFIX = logger.PREFIX.CONFIG
+
 /**
  * Parse the configuration file as YAML
  * @param configFile  YAML configuration file
  * @returns {*} Parsed YAML object
  */
 function parseConfigFile(configFile) {
-  logger.debug(`Parsing config file=${configFile}`)
+  logger.info(`${PREFIX} Loading configuration: ${configFile}`)
   try {
-    return yaml.load(fs.readFileSync(configFile, 'utf8'))
+    const config = yaml.load(fs.readFileSync(configFile, 'utf8'))
+    logger.debug(`${PREFIX} Configuration loaded successfully`)
+    return config
   } catch (error) {
+    logger.logError(
+      PREFIX,
+      `Failed to parse configuration file: ${configFile}`,
+      error
+    )
     core.setFailed(error.message)
     throw Error(
       `Failed to parse configuration file, config-file=${configFile}`,
@@ -25,35 +34,38 @@ function parseConfigFile(configFile) {
 
 function writeToFile(folder, fileName, content, isPlanText) {
   if (!fs.existsSync(folder)) {
-    logger.debug(`Creating folder since it does not exist, folder=${folder}`)
+    logger.debug(`${PREFIX} Creating folder: ${folder}`)
     fs.mkdirSync(folder, { recursive: true })
   }
   const fileContent = isPlanText ? content : yaml.dump(content)
-  logger.debug(`Creating file, file-path=${folder}/${fileName}`)
+  const filePath = `${folder}/${fileName}`
+  logger.debug(`${PREFIX} Writing file: ${filePath}`)
   try {
-    fs.writeFileSync(`${folder}/${fileName}`, fileContent, 'utf-8')
+    fs.writeFileSync(filePath, fileContent, 'utf-8')
   } catch (err) {
-    logger.error(`Failed to write to file, file-name=${folder}/${fileName}`)
+    logger.logError(PREFIX, `Failed to write file: ${filePath}`, err)
     throw new Error(err)
   }
 }
 
 async function cleanAppDoneFiles(parsedConfig, sharedFolder, timeout = 4000) {
-  // Clean up 'app-*-done' files in shared directory
   await new Promise(resolve => {
     setTimeout(resolve, timeout)
   })
-  logger.debug('Removing files relating to notifying the application is done')
+  logger.debug(`${PREFIX} Cleaning up app notification files`)
   for (const [i] of parsedConfig.run.entries()) {
     try {
       fs.unlinkSync(`${sharedFolder}/app-${i}-done`)
     } catch (error) {
-      logger.debug(error)
+      logger.debug(`${PREFIX} No file to clean: app-${i}-done`)
     }
   }
 }
 
 async function checkFileExistsWithTimeout(filePath, appIndex, timeout = 60000) {
+  logger.debug(
+    `${PREFIX} Waiting for file: ${filePath} (timeout: ${timeout}ms)`
+  )
   await new Promise(function (resolve, reject) {
     // eslint-disable-next-line prefer-const
     let watcher
@@ -62,24 +74,28 @@ async function checkFileExistsWithTimeout(filePath, appIndex, timeout = 60000) {
       if (watcher) {
         watcher.close()
       }
-      logger.info('Checking data-caterer logs')
+      logger.warn(`${PREFIX} Timeout waiting for file: ${filePath}`)
+      logger.info(
+        `${logger.PREFIX.DOCKER} Retrieving data-caterer logs for debugging...`
+      )
       try {
         const dataCatererLogs = execSync(`docker logs data-caterer-${appIndex}`)
         logger.info(dataCatererLogs.toString())
       } catch (e) {
-        logger.error('Failed to get data-caterer logs', e)
+        logger.logError(
+          logger.PREFIX.DOCKER,
+          'Failed to retrieve data-caterer logs',
+          e
+        )
       }
       reject(
-        new Error(
-          `File did not exist and was not created during the timeout, file=${filePath}`
-        )
+        new Error(`Timeout: File not created within ${timeout}ms: ${filePath}`)
       )
     }, timeout)
 
     fs.access(filePath, fs.constants.R_OK, function (err) {
-      logger.debug(`Checking if file exists, file=${filePath}`)
       if (!err) {
-        logger.debug(`File exists, file=${filePath}`)
+        logger.debug(`${PREFIX} File found: ${filePath}`)
         clearTimeout(timer)
         if (watcher) {
           watcher.close()
@@ -90,15 +106,26 @@ async function checkFileExistsWithTimeout(filePath, appIndex, timeout = 60000) {
 
     const dir = dirname(filePath)
     const currBasename = basename(filePath)
-    watcher = fs.watch(dir, function (eventType, filename) {
-      if (eventType === 'rename' && filename === currBasename) {
-        clearTimeout(timer)
-        if (watcher) {
-          watcher.close()
+    try {
+      watcher = fs.watch(dir, function (eventType, filename) {
+        if (eventType === 'rename' && filename === currBasename) {
+          clearTimeout(timer)
+          if (watcher) {
+            watcher.close()
+          }
+          resolve()
         }
-        resolve()
-      }
-    })
+      })
+      watcher.on('error', function (watchError) {
+        logger.debug(
+          `${PREFIX} File watcher error for ${dir}: ${watchError.message}`
+        )
+      })
+    } catch (watchError) {
+      logger.debug(
+        `${PREFIX} Could not watch directory ${dir}: ${watchError.message}`
+      )
+    }
   })
   await new Promise(resolve => {
     setTimeout(resolve, 1000)
@@ -107,28 +134,26 @@ async function checkFileExistsWithTimeout(filePath, appIndex, timeout = 60000) {
 
 function showLogFileContent(logFile) {
   if (logger.isDebugEnabled()) {
-    logger.debug('Showing application logs')
+    logger.debug(`${logger.PREFIX.APP} Application logs from: ${logFile}`)
     if (fs.existsSync(logFile)) {
       const logFileContent = fs.readFileSync(logFile).toString()
       // eslint-disable-next-line github/array-foreach
       logFileContent.split('\n').forEach(logLine => {
-        logger.debug(logLine)
+        if (logLine.trim()) {
+          logger.debug(`  ${logLine}`)
+        }
       })
     } else {
-      logger.error(
-        'Unable to show log file content, log file does not exist, log-file=',
-        logFile
-      )
+      logger.warn(`${logger.PREFIX.APP} Log file does not exist: ${logFile}`)
     }
   }
 }
 
 function createFolders(configurationFolder, sharedFolder, testResultsFolder) {
-  logger.debug(
-    `Using data caterer configuration folder: ${configurationFolder}`
-  )
-  logger.debug(`Using shared folder: ${sharedFolder}`)
-  logger.debug(`Using test results folder: ${testResultsFolder}`)
+  logger.debug(`${PREFIX} Creating folders:`)
+  logger.debug(`${PREFIX}   Configuration: ${configurationFolder}`)
+  logger.debug(`${PREFIX}   Shared: ${sharedFolder}`)
+  logger.debug(`${PREFIX}   Results: ${testResultsFolder}`)
   fs.mkdirSync(configurationFolder, { recursive: true })
   fs.mkdirSync(sharedFolder, { recursive: true })
   fs.mkdirSync(testResultsFolder, { recursive: true })

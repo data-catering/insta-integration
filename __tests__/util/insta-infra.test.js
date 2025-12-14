@@ -74,9 +74,7 @@ describe('runServices', () => {
         ['service1', 'unsupportedService'],
         {}
       )
-    ).toThrow(
-      'Found unsupported insta-infra service in configuration, service=unsupportedService'
-    )
+    ).toThrow('Unsupported service: unsupportedService')
   })
 
   it('should log error and check container status if running services fail', () => {
@@ -88,8 +86,29 @@ describe('runServices', () => {
     expect(() => runServices('/path/to/insta-infra', ['service1'], {})).toThrow(
       'run failed'
     )
-    expect(logger.error).toHaveBeenCalledWith(
-      expect.stringContaining('Failed to run services=service1')
+    expect(logger.logError).toHaveBeenCalledWith(
+      '[Service]',
+      'Failed to start services: service1'
     )
+  })
+
+  it('should check all services when running services fail', () => {
+    execSync.mockReturnValueOnce('service1 service2 service3')
+    execSync.mockImplementationOnce(() => {
+      throw new Error('run failed')
+    })
+    isContainerFinished.mockReturnValue(false)
+    expect(() =>
+      runServices(
+        '/path/to/insta-infra',
+        ['service1', 'service2', 'service3'],
+        {}
+      )
+    ).toThrow('run failed')
+    // All three services should be checked
+    expect(isContainerFinished).toHaveBeenCalledTimes(3)
+    expect(isContainerFinished).toHaveBeenCalledWith('service1')
+    expect(isContainerFinished).toHaveBeenCalledWith('service2')
+    expect(isContainerFinished).toHaveBeenCalledWith('service3')
   })
 })

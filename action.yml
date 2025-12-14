@@ -18,7 +18,7 @@ inputs:
     default: '/home/runner/work'
   data_caterer_version:
     description: 'Version of data-caterer Docker image'
-    default: '0.16.1'
+    default: '0.17.3'
 
 # Define your outputs here.
 outputs:

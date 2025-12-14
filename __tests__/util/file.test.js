@@ -75,7 +75,7 @@ describe('writeToFile', () => {
     jest.spyOn(fs, 'mkdirSync')
     jest.spyOn(fs, 'writeFileSync')
     jest.spyOn(logger, 'debug')
-    jest.spyOn(logger, 'error')
+    jest.spyOn(logger, 'logError')
     jest.spyOn(yaml, 'dump')
   })
 
@@ -115,7 +115,7 @@ describe('writeToFile', () => {
   it('should log debug messages', () => {
     writeToFile('folder', 'test.txt', 'content', true)
     expect(logger.debug).toHaveBeenCalledWith(
-      'Creating file, file-path=folder/test.txt'
+      '[Config] Writing file: folder/test.txt'
     )
   })
 
@@ -126,8 +126,10 @@ describe('writeToFile', () => {
     expect(() => writeToFile('folder', 'error.txt', 'content', true)).toThrow(
       'Write error'
     )
-    expect(logger.error).toHaveBeenCalledWith(
-      'Failed to write to file, file-name=folder/error.txt'
+    expect(logger.logError).toHaveBeenCalledWith(
+      '[Config]',
+      'Failed to write file: folder/error.txt',
+      expect.any(Error)
     )
   })
 })
@@ -156,7 +158,9 @@ describe('cleanAppDoneFiles', () => {
       throw new Error('unlink failed')
     })
     await cleanAppDoneFiles(parsedConfig, sharedFolder, 10)
-    expect(logger.debug).toHaveBeenCalledWith(new Error('unlink failed'))
+    expect(logger.debug).toHaveBeenCalledWith(
+      '[Config] No file to clean: app-0-done'
+    )
   })
 })
 
@@ -200,9 +204,7 @@ describe('checkFileExistsWithTimeout', () => {
     })
     await expect(
       checkFileExistsWithTimeout('/path/to/file', 0, 10)
-    ).rejects.toThrow(
-      'File did not exist and was not created during the timeout, file=/path/to/file'
-    )
+    ).rejects.toThrow('Timeout: File not created within 10ms: /path/to/file')
   })
 })
 
@@ -218,11 +220,14 @@ describe('showLogFileContent', () => {
     const logContent = 'line1\nline2\nline3'
     fs.existsSync.mockReturnValue(true)
     fs.readFileSync.mockReturnValue(logContent)
+    logger.isDebugEnabled = jest.fn().mockReturnValue(true)
     showLogFileContent('/path/to/log')
-    expect(logger.debug).toHaveBeenCalledWith('Showing application logs')
-    expect(logger.debug).toHaveBeenCalledWith('line1')
-    expect(logger.debug).toHaveBeenCalledWith('line2')
-    expect(logger.debug).toHaveBeenCalledWith('line3')
+    expect(logger.debug).toHaveBeenCalledWith(
+      '[App] Application logs from: /path/to/log'
+    )
+    expect(logger.debug).toHaveBeenCalledWith('  line1')
+    expect(logger.debug).toHaveBeenCalledWith('  line2')
+    expect(logger.debug).toHaveBeenCalledWith('  line3')
   })
 })
 

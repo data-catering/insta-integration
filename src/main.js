@@ -3,6 +3,8 @@ const { runIntegrationTests } = require('./insta-integration')
 const { resolve } = require('node:path')
 const logger = require('./util/log')
 
+const PREFIX = logger.PREFIX.CONFIG
+
 /**
  * Retrieves the base folder path.
  * @param {string} baseFolder - The default base folder path.
@@ -15,7 +17,7 @@ function getBaseFolder(baseFolder) {
     typeof actionsInput !== 'undefined' && actionsInput.length > 0
       ? actionsInput
       : baseFolder
-  if (!baseFolder) {
+  if (!folderFromConf) {
     throw new Error('Base folder configuration is not defined')
   }
   const cleanFolderPath = folderFromConf.replace('/./', '')
@@ -25,7 +27,7 @@ function getBaseFolder(baseFolder) {
 }
 
 function getDataCatererVersion(dataCatererVersion) {
-  return !dataCatererVersion ? '0.16.1' : dataCatererVersion
+  return !dataCatererVersion ? '0.17.3' : dataCatererVersion
 }
 
 function getConfigurationItem(item, defaultValue, requiredNonEmpty = false) {
@@ -53,7 +55,7 @@ function getConfiguration() {
   let baseFolder = process.env.BASE_FOLDER
   let dataCatererVersion = process.env.DATA_CATERER_VERSION
 
-  logger.debug('Checking if GitHub Action properties defined')
+  logger.debug(`${PREFIX} Reading configuration from environment/actions`)
   if (core) {
     applicationConfig = getConfigurationItem(
       'configuration_file',
@@ -83,23 +85,25 @@ function getConfiguration() {
  * @returns {Promise<void>} Resolves when the action is complete.
  */
 async function run() {
-  logger.info('Starting insta-integration run')
+  logger.logSectionStart('insta-integration')
   try {
     const config = getConfiguration()
 
-    // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-    logger.debug(`Using config file: ${config.applicationConfig}`)
-    logger.debug(`Using insta-infra folder: ${config.instaInfraFolder}`)
-    logger.debug(`Using base folder: ${config.baseFolder}`)
-    logger.debug(`Using data-caterer version: ${config.dataCatererVersion}`)
+    logger.debug(`${PREFIX} Configuration:`)
+    logger.debug(`${PREFIX}   Config file: ${config.applicationConfig}`)
+    logger.debug(`${PREFIX}   Insta-infra folder: ${config.instaInfraFolder}`)
+    logger.debug(`${PREFIX}   Base folder: ${config.baseFolder}`)
+    logger.debug(
+      `${PREFIX}   Data-caterer version: ${config.dataCatererVersion}`
+    )
+
     const result = runIntegrationTests(config)
     // eslint-disable-next-line github/no-then
     return await result.then(() => {
-      logger.info('insta-integration run completed')
+      logger.logSuccess(PREFIX, 'Integration tests completed')
     })
   } catch (error) {
-    // Fail the workflow run if an error occurs
-    logger.error('Failed to run insta-integration. ', error)
+    logger.logError(PREFIX, 'Integration tests failed', error)
     core.setFailed(error.message)
     throw error
   }

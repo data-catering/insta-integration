@@ -21665,6 +21665,11 @@ const {
   checkFileExistsWithTimeout
 } = __nccwpck_require__(2362)
 
+const PREFIX_CONFIG = logger.PREFIX.CONFIG
+const PREFIX_APP = logger.PREFIX.APP
+const PREFIX_DATA_GEN = logger.PREFIX.DATA_GEN
+const PREFIX_VALIDATION = logger.PREFIX.VALIDATION
+
 /**
  * From the parsed YAML configuration, extract services to run along with environment variables
  * @param parsedConfig  YAML configuration
@@ -21672,17 +21677,18 @@ const {
  * @returns {{envVars: {}, serviceNames: *[]}}
  */
 function extractServiceNamesAndEnv(parsedConfig, configFileDirectory) {
-  // For each service defined, download any data required, pass service names and versions to insta-infra
   const serviceNames = []
   const envVars = {}
   if (parsedConfig.services) {
+    logger.debug(
+      `${PREFIX_CONFIG} Processing ${parsedConfig.services.length} service(s)`
+    )
     for (const service of parsedConfig.services) {
       let serviceName = service.name
-      logger.debug(`Parsing config for service=${serviceName}`)
+      logger.debug(`${PREFIX_CONFIG} Configuring service: ${serviceName}`)
       let envServiceName = serviceName.toUpperCase()
       const sptName = serviceName.split(':')
 
-      // If there is 2 parts, version of service has been explicitly defined
       if (sptName.length >= 2) {
         serviceName = sptName[0]
         serviceNames.push(serviceName)
@@ -21694,38 +21700,28 @@ function extractServiceNamesAndEnv(parsedConfig, configFileDirectory) {
       }
 
       if (service.env) {
-        // Add any additional environment variables required
         for (const kv of Object.entries(service.env)) {
           envVars[kv[0]] = kv[1]
         }
-      } else {
-        logger.debug(
-          `No environment variables defined for service=${serviceName}`
-        )
       }
 
       if (service.data) {
-        // service.data could be a URL, directory or single file
         const downloadLinkRegex = new RegExp('^http[s?]://.*$')
         if (downloadLinkRegex.test(service.data)) {
-          // TODO Then we need to download directory or file
-          logger.info('Downloading data is currently unsupported')
+          logger.warn(
+            `${PREFIX_CONFIG} URL data sources not yet supported: ${service.data}`
+          )
         } else if (service.data.startsWith('/')) {
           envVars[`${envServiceName}_DATA`] = service.data
         } else {
-          // Can be a relative directory from perspective of config YAML
           const dataPath = `${configFileDirectory}/${service.data}`
-          logger.debug(`Using env var: ${envServiceName}_DATA -> ${dataPath}`)
+          logger.debug(`${PREFIX_CONFIG} Service data path: ${dataPath}`)
           envVars[`${envServiceName}_DATA`] = dataPath
         }
-      } else {
-        logger.debug(
-          `No custom data at startup used for service=${serviceName}`
-        )
       }
     }
   } else {
-    logger.debug('No services defined')
+    logger.debug(`${PREFIX_CONFIG} No services defined`)
   }
   return { serviceNames, envVars }
 }
@@ -21737,11 +21733,13 @@ function extractServiceFromGeneration(
 ) {
   if (generationTaskToServiceMapping[sptRelationship[0]] !== undefined) {
     const service = generationTaskToServiceMapping[sptRelationship[0]]
-    logger.debug(`Found corresponding generation task, service=${service}`)
+    logger.debug(
+      `${PREFIX_DATA_GEN} Mapped generation task to service: ${service}`
+    )
     return service
   } else {
     throw new Error(
-      `Relationship defined without corresponding generation task, relationship=${sptRelationship[0]}`
+      `Relationship defined without corresponding generation task: ${sptRelationship[0]}`
     )
   }
 }
@@ -21753,8 +21751,11 @@ function extractDataGenerationTasks(
   generationTaskToServiceMapping
 ) {
   if (testConfig.generation) {
-    logger.debug('Checking for data generation configurations')
-    for (const dataSourceGeneration of Object.entries(testConfig.generation)) {
+    const genEntries = Object.entries(testConfig.generation)
+    logger.debug(
+      `${PREFIX_DATA_GEN} Processing ${genEntries.length} generation task(s)`
+    )
+    for (const dataSourceGeneration of genEntries) {
       const task = baseTask()
       for (const generationTask of dataSourceGeneration[1]) {
         const taskName = `${dataSourceGeneration[0]}-task`
@@ -21791,7 +21792,6 @@ function extractDataGenerationTasks(
       currentTasks.push(task)
     }
 
-    // Need to add data gen task to notify this process that data caterer is done generating data and application can run
     if (currentPlan.tasks.some(t => t.dataSourceName === 'csv')) {
       const csvTask = currentTasks.find(t => t.name === 'csv-task')
       csvTask.steps.push(notifyGenerationDoneTask())
@@ -21803,7 +21803,7 @@ function extractDataGenerationTasks(
       })
     }
   } else {
-    logger.debug('No data generation tasks defined')
+    logger.debug(`${PREFIX_DATA_GEN} No generation tasks defined`)
   }
 }
 
@@ -21815,7 +21815,7 @@ function getForeignKeyFromRelationship(
   const sptRelationship = relationship.split('||')
   if (sptRelationship.length < 2 || sptRelationship.length > 3) {
     throw new Error(
-      `Relationship should follow pattern: <generation name>||<fields> or <data source>||<generation name>||<fields>, relationship=${relationship}`
+      `Invalid relationship format (expected: <name>||<fields> or <source>||<name>||<fields>): ${relationship}`
     )
   }
 
@@ -21844,8 +21844,11 @@ function extractRelationships(
   currentPlan
 ) {
   if (testConfig.relationship) {
-    logger.debug('Checking for data generation relationship configurations')
-    for (const rel of Object.entries(testConfig.relationship)) {
+    const relEntries = Object.entries(testConfig.relationship)
+    logger.debug(
+      `${PREFIX_DATA_GEN} Processing ${relEntries.length} relationship(s)`
+    )
+    for (const rel of relEntries) {
       if (testConfig.generation) {
         const childrenRelationshipServiceNames = []
         for (const childRel of rel[1]) {
@@ -21872,18 +21875,19 @@ function extractRelationships(
       }
     }
   } else {
-    logger.debug('No relationships defined')
+    logger.debug(`${PREFIX_DATA_GEN} No relationships defined`)
   }
 }
 
 function extractDataValidations(testConfig, appIndex, currValidations) {
-  logger.debug('Checking for data validation configurations')
   if (testConfig.validation) {
-    for (const valid of Object.entries(testConfig.validation)) {
+    const validEntries = Object.entries(testConfig.validation)
+    logger.debug(
+      `${PREFIX_VALIDATION} Processing ${validEntries.length} validation(s)`
+    )
+    for (const valid of validEntries) {
       const currService = valid[0]
       const dataSourceValidations = valid[1]
-      // Check to see if a wait condition is already defined, else add in one
-      // to wait for tmp file to exist that is generated after application/job is run
       if (
         dataSourceValidations.length > 0 &&
         !dataSourceValidations[0].waitCondition
@@ -21895,7 +21899,7 @@ function extractDataValidations(testConfig, appIndex, currValidations) {
       currValidations.dataSources[currService] = dataSourceValidations
     }
   } else {
-    logger.debug('No data validations defined')
+    logger.debug(`${PREFIX_VALIDATION} No validations defined`)
   }
 }
 
@@ -21910,9 +21914,7 @@ function runDataCaterer(
   sharedFolder,
   baseConfig
 ) {
-  logger.info('Reading data generation and validation configurations')
-  // Use template plan and task YAML files
-  // Also, template application.conf
+  logger.info(`${PREFIX_DATA_GEN} Preparing data generation and validation`)
   const currentPlan = basePlan()
   const runId = currentPlan.runId
   const currentTasks = []
@@ -21955,48 +21957,45 @@ function runDataCaterer(
   )
 
   removeContainer(`data-caterer-${appIndex}`)
-  logger.info('Starting to run data generation and validation')
+  logger.info(`${PREFIX_DATA_GEN} Starting data-caterer container`)
   runDockerImage(dockerRunCommand, appIndex)
   return runId
 }
 
 async function waitForDataGeneration(testConfig, sharedFolder, appIndex) {
-  // For applications/jobs that rely on data to be generated first before running, we wait until data caterer has
-  // created a csv file to notify us that it has completed generating data
   if (
     testConfig.generation &&
     Object.entries(testConfig.generation).length > 0
   ) {
-    logger.info('Waiting for data generation to be completed')
+    logger.info(`${PREFIX_DATA_GEN} Waiting for data generation to complete...`)
     const notifyFilePath = `${sharedFolder}/notify/data-gen-done`
     fs.mkdirSync(`${sharedFolder}/notify`, { recursive: true })
     await checkFileExistsWithTimeout(notifyFilePath, appIndex)
     logOutContainerLogs(`data-caterer-${appIndex}`)
-    logger.debug('Removing data generation done folder')
+    logger.logSuccess(PREFIX_DATA_GEN, 'Data generation completed')
+    logger.debug(`${PREFIX_DATA_GEN} Cleaning up notification file`)
     try {
       fs.rmSync(notifyFilePath, {
         force: true
       })
     } catch (error) {
-      logger.warn(error)
+      logger.warn(
+        `${PREFIX_DATA_GEN} Could not remove notification file: ${error.message}`
+      )
     }
   } else {
-    logger.debug(
-      'No data generation defined, not waiting for data generation to be completed'
-    )
+    logger.debug(`${PREFIX_DATA_GEN} No generation tasks - skipping wait`)
   }
 }
 
 function setEnvironmentVariables(runConf) {
   if (runConf.env) {
+    const envCount = Object.entries(runConf.env).length
+    logger.debug(`${PREFIX_APP} Setting ${envCount} environment variable(s)`)
     for (const env of Object.entries(runConf.env)) {
-      logger.debug(
-        `Setting environment variable for application/job run, key=${env[0]}`
-      )
+      logger.debug(`${PREFIX_APP} Set env: ${env[0]}`)
       process.env[env[0]] = env[1]
     }
-  } else {
-    logger.debug('No environment variables set')
   }
 }
 
@@ -22008,14 +22007,19 @@ async function runApplication(
   waitForFinish
 ) {
   if (runConf.command) {
-    logger.info('Running application/job')
+    logger.info(`${PREFIX_APP} Running application (index: ${appIndex})`)
+    logger.debug(`${PREFIX_APP} Command: ${runConf.command}`)
     setEnvironmentVariables(runConf)
     const logsFolder = `${baseFolder}/logs`
     if (!fs.existsSync(logsFolder)) {
       try {
         fs.mkdirSync(logsFolder, { recursive: true })
       } catch (e) {
-        logger.error(`Failed to create logs folder, folder=${logsFolder}`)
+        logger.logError(
+          PREFIX_APP,
+          `Failed to create logs folder: ${logsFolder}`,
+          e
+        )
         throw new Error(e)
       }
     }
@@ -22023,107 +22027,111 @@ async function runApplication(
       try {
         fs.mkdirSync(configFolder, { recursive: true })
       } catch (e) {
-        logger.error(`Failed to create config folder, folder=${configFolder}`)
+        logger.logError(
+          PREFIX_APP,
+          `Failed to create config folder: ${configFolder}`,
+          e
+        )
         throw new Error(e)
       }
     }
     try {
       const logFile = `${logsFolder}/app_output_${appIndex}.log`
-      const resultPromise = new Promise((resolve, reject) => {
-        const logStream = fs.createWriteStream(logFile, { flags: 'w+' })
-        // Run in the background
-        const runApp = spawn(runConf.command, [], {
-          cwd: configFolder,
-          shell: true
-        })
-        runApp.stdout.pipe(logStream)
-        runApp.stderr.pipe(logStream)
+      const logStream = fs.createWriteStream(logFile, { flags: 'w+' })
+      const runApp = spawn(runConf.command, [], {
+        cwd: configFolder,
+        shell: true
+      })
+      runApp.stdout.pipe(logStream)
+      runApp.stderr.pipe(logStream)
 
+      const resultPromise = new Promise((resolve, reject) => {
         runApp.on('error', function (err) {
-          logger.error(`Application ${appIndex} failed with error`, err)
+          logger.logError(PREFIX_APP, `Application ${appIndex} failed`, err)
           logStream.end()
           showLogFileContent(logFile)
           reject(err)
         })
         runApp.on('close', function (code) {
-          logger.info(`Application ${appIndex} exited with code ${code}`)
           logStream.end()
           showLogFileContent(logFile)
           if (code !== 0) {
+            logger.logError(
+              PREFIX_APP,
+              `Application ${appIndex} exited with code ${code}`
+            )
             reject(
               new Error(`Application ${appIndex} exited with code ${code}`)
             )
           } else {
+            logger.logSuccess(
+              PREFIX_APP,
+              `Application ${appIndex} completed (exit code: 0)`
+            )
             resolve(runApp)
           }
         })
 
         if (!waitForFinish) {
-          logger.debug('Not waiting for application to finish')
+          logger.debug(`${PREFIX_APP} Running in background mode`)
           resolve(runApp)
         }
       })
         // eslint-disable-next-line github/no-then
-        .then(runApp => {
-          logger.debug({
-            message: `Application command was successful`,
-            command: runConf.command
-          })
-          return runApp
+        .then(app => {
+          logger.debug(`${PREFIX_APP} Command successful: ${runConf.command}`)
+          return app
         })
         // eslint-disable-next-line github/no-then
         .catch(error => {
-          logger.error({
-            message: `Application command failed`,
-            command: runConf.command,
+          logger.logError(
+            PREFIX_APP,
+            `Command failed: ${runConf.command}`,
             error
-          })
+          )
           throw new Error(error)
         })
 
       if (waitForFinish) {
-        logger.info({
-          message: 'Waiting for command to finish',
-          command: runConf.command
-        })
+        logger.info(`${PREFIX_APP} Waiting for application to complete...`)
         await resultPromise
       }
-      return { resultPromise }
+      return { resultPromise, runApp }
     } catch (error) {
-      logger.error({
-        message: 'Failed to run application/job',
-        command: runConf.command
-      })
+      logger.logError(
+        PREFIX_APP,
+        `Failed to run command: ${runConf.command}`,
+        error
+      )
       throw new Error(error)
     }
   } else {
-    logger.debug('No command defined')
+    logger.debug(`${PREFIX_APP} No command defined`)
     return null
   }
 }
 
 function shutdownApplication(applicationProcess) {
   if (applicationProcess !== null) {
-    logger.debug('Attempting to shut down application')
+    logger.debug(`${PREFIX_APP} Shutting down application`)
     if (applicationProcess && applicationProcess.runApp) {
-      logger.debug('Killing application now')
       applicationProcess.runApp.kill()
+      logger.debug(`${PREFIX_APP} Application terminated`)
     } else {
-      logger.debug(`Application already stopped`)
+      logger.debug(`${PREFIX_APP} Application already stopped`)
     }
-  } else {
-    logger.debug('Application process is null, not attempting to shutdown')
   }
 }
 
 function isRunGenerationFirst(runConf) {
+  const generateFirstValue = runConf.generateFirst
+  const isGenerateFirstTrue =
+    generateFirstValue === true || generateFirstValue === 'true'
   const generateFirstTrueWithTest =
-    typeof runConf.generateFirst !== 'undefined' &&
-    runConf.generateFirst === 'true' &&
-    runConf.test
-  return (
-    generateFirstTrueWithTest || typeof runConf.generateFirst === 'undefined'
-  )
+    typeof generateFirstValue !== 'undefined' &&
+    isGenerateFirstTrue &&
+    !!runConf.test
+  return generateFirstTrueWithTest || typeof generateFirstValue === 'undefined'
 }
 
 async function runTests(parsedConfig, configFileDirectory, config) {
@@ -22137,8 +22145,14 @@ async function runTests(parsedConfig, configFileDirectory, config) {
   setEnvironmentVariables(parsedConfig)
 
   if (parsedConfig.run) {
+    logger.info(
+      `${PREFIX_APP} Processing ${parsedConfig.run.length} test run(s)`
+    )
     await cleanAppDoneFiles(parsedConfig, sharedFolder)
     for (const [i, runConf] of parsedConfig.run.entries()) {
+      logger.info(
+        `${PREFIX_APP} ─── Test Run ${i + 1} of ${parsedConfig.run.length} ───`
+      )
       writeToFile(
         configurationFolder,
         'application.conf',
@@ -22149,7 +22163,9 @@ async function runTests(parsedConfig, configFileDirectory, config) {
       let applicationProcess
       let dataCatererRunId
       if (isRunGenerationFirst(runConf)) {
-        logger.debug('Running data generation first')
+        logger.debug(
+          `${PREFIX_APP} Mode: generate data first, then run application`
+        )
         dataCatererRunId = runDataCaterer(
           runConf.test,
           i,
@@ -22158,7 +22174,6 @@ async function runTests(parsedConfig, configFileDirectory, config) {
           config
         )
         await waitForDataGeneration(runConf.test, sharedFolder, i)
-        logger.debug('Running application after data generation')
         applicationProcess = await runApplication(
           runConf,
           configFileDirectory,
@@ -22166,10 +22181,14 @@ async function runTests(parsedConfig, configFileDirectory, config) {
           i,
           runConf.commandWaitForFinish
         )
-        logger.debug('Notifying data caterer that application is done')
+        logger.debug(
+          `${PREFIX_APP} Notifying data-caterer that application is done`
+        )
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
       } else {
-        logger.debug('Running application first')
+        logger.debug(
+          `${PREFIX_APP} Mode: run application first, then generate data`
+        )
         applicationProcess = await runApplication(
           runConf,
           configFileDirectory,
@@ -22177,7 +22196,6 @@ async function runTests(parsedConfig, configFileDirectory, config) {
           i,
           runConf.commandWaitForFinish
         )
-        logger.debug('Running data generation after application')
         writeToFile(sharedFolder, `app-${i}-done`, 'done', true)
         dataCatererRunId = runDataCaterer(
           runConf.test,
@@ -22187,15 +22205,14 @@ async function runTests(parsedConfig, configFileDirectory, config) {
           config
         )
       }
-      // Wait for data caterer container to finish
       await waitForContainerToFinish(`data-caterer-${i}`)
-      // Check if file exists
       const testResultsFile = `${testResultsFolder}/${dataCatererRunId}/results.json`
       if (fs.existsSync(testResultsFile)) {
         testResults.push(JSON.parse(fs.readFileSync(testResultsFile, 'utf8')))
+        logger.debug(`${PREFIX_VALIDATION} Loaded results: ${testResultsFile}`)
       } else {
         logger.warn(
-          `Test result file does not exist, unable to show test results, file=${testResultsFile}`
+          `${PREFIX_VALIDATION} Results file not found: ${testResultsFile}`
         )
       }
     }
@@ -22205,10 +22222,11 @@ async function runTests(parsedConfig, configFileDirectory, config) {
 }
 
 function showTestResultSummary(testResults) {
-  let numRecordsGenerated = -1 //Start at -1 since 1 record is always generated
+  let numRecordsGenerated = -1
   let numSuccessValidations = 0
   let numFailedValidations = 0
   let numValidations = 0
+  const failedValidationDetails = []
 
   for (const testResult of testResults) {
     if (testResult.generation) {
@@ -22224,39 +22242,70 @@ function showTestResultSummary(testResults) {
         numFailedValidations +=
           validation.numValidations - validation.numSuccess
         if (validation.errorValidations) {
-          logger.info('Failed validation details')
           for (const errorValidation of validation.errorValidations) {
-            const baseLog = `Failed validation: validation=${JSON.stringify(errorValidation.validation)}, num-errors=${errorValidation.numErrors}`
-            if (
-              errorValidation.sampleErrorValues &&
-              Object.entries(errorValidation.sampleErrorValues).length > 0
-            ) {
-              logger.info(
-                `${baseLog}, sample-error-value=${JSON.stringify(errorValidation.sampleErrorValues[0])}`
-              )
-            } else {
-              logger.info(baseLog)
-            }
+            failedValidationDetails.push(errorValidation)
           }
         }
       }
     }
   }
-  const validationSuccessRate = numSuccessValidations / numValidations
-  logger.info('Test result summary')
-  logger.info(`Number of records generated: ${numRecordsGenerated}`)
-  logger.info(`Number of successful validations: ${numSuccessValidations}`)
-  logger.info(`Number of failed validations: ${numFailedValidations}`)
-  logger.info(`Number of validations: ${numValidations}`)
-  logger.info(`Validation success rate: ${validationSuccessRate * 100}%`)
+
+  const validationSuccessRate =
+    numValidations > 0
+      ? ((numSuccessValidations / numValidations) * 100).toFixed(1)
+      : 'N/A'
+
+  // Show failed validation details first if any
+  if (failedValidationDetails.length > 0) {
+    logger.info('')
+    logger.info(`${PREFIX_VALIDATION} Failed Validation Details:`)
+    for (const errorValidation of failedValidationDetails) {
+      const validationStr = JSON.stringify(errorValidation.validation)
+      logger.error(`${PREFIX_VALIDATION}   ✗ ${validationStr}`)
+      logger.error(
+        `${PREFIX_VALIDATION}     Errors: ${errorValidation.numErrors}`
+      )
+      if (
+        errorValidation.sampleErrorValues &&
+        Object.entries(errorValidation.sampleErrorValues).length > 0
+      ) {
+        logger.error(
+          `${PREFIX_VALIDATION}     Sample: ${JSON.stringify(errorValidation.sampleErrorValues[0])}`
+        )
+      }
+    }
+  }
+
+  // Summary section
+  const summaryData = {
+    'Records Generated': numRecordsGenerated >= 0 ? numRecordsGenerated : 0,
+    'Validations Run': numValidations,
+    'Validations Passed': numSuccessValidations,
+    'Validations Failed': numFailedValidations,
+    'Success Rate':
+      typeof validationSuccessRate === 'string'
+        ? validationSuccessRate
+        : `${validationSuccessRate}%`
+  }
+
+  logger.logSummary('Test Results', summaryData)
+
   if (process.env.GITHUB_ACTION) {
-    core.setOutput('num_records_generated', numRecordsGenerated)
+    core.setOutput(
+      'num_records_generated',
+      numRecordsGenerated >= 0 ? numRecordsGenerated : 0
+    )
     core.setOutput('num_success_validations', numSuccessValidations)
     core.setOutput('num_failed_validations', numFailedValidations)
     core.setOutput('num_validations', numValidations)
-    core.setOutput('validation_success_rate', validationSuccessRate)
+    core.setOutput(
+      'validation_success_rate',
+      numValidations > 0 ? numSuccessValidations / numValidations : 0
+    )
     core.setOutput('full_results', testResults)
   }
+
+  return numFailedValidations
 }
 
 /**
@@ -22273,7 +22322,7 @@ function showTestResultSummary(testResults) {
 async function runIntegrationTests(config) {
   if (config.instaInfraFolder.includes(' ')) {
     throw new Error(
-      `Invalid insta-infra folder pathway=${config.instaInfraFolder}`
+      `Invalid insta-infra folder path (contains spaces): ${config.instaInfraFolder}`
     )
   }
   const parsedConfig = parseConfigFile(config.applicationConfig)
@@ -22288,7 +22337,12 @@ async function runIntegrationTests(config) {
   )
 
   if (serviceNames.length > 0) {
+    logger.info(
+      `${logger.PREFIX.SERVICE} Starting ${serviceNames.length} service(s)`
+    )
     runServices(config.instaInfraFolder, serviceNames, envVars)
+  } else {
+    logger.debug(`${logger.PREFIX.SERVICE} No services to start`)
   }
 
   const testResultsPromise = runTests(
@@ -22299,8 +22353,10 @@ async function runIntegrationTests(config) {
 
   // eslint-disable-next-line github/no-then
   return testResultsPromise.then(testResults => {
-    logger.info('Finished tests!')
-    showTestResultSummary(testResults)
+    const numFailed = showTestResultSummary(testResults)
+    if (numFailed > 0) {
+      logger.warn(`${PREFIX_VALIDATION} ${numFailed} validation(s) failed`)
+    }
   })
 }
 
@@ -22312,7 +22368,8 @@ module.exports = {
   extractRelationships,
   extractServiceNamesAndEnv,
   shutdownApplication,
-  runApplication
+  runApplication,
+  isRunGenerationFirst
 }
 
 
@@ -22326,6 +22383,8 @@ const { runIntegrationTests } = __nccwpck_require__(8370)
 const { resolve } = __nccwpck_require__(9411)
 const logger = __nccwpck_require__(9048)
 
+const PREFIX = logger.PREFIX.CONFIG
+
 /**
  * Retrieves the base folder path.
  * @param {string} baseFolder - The default base folder path.
@@ -22338,7 +22397,7 @@ function getBaseFolder(baseFolder) {
     typeof actionsInput !== 'undefined' && actionsInput.length > 0
       ? actionsInput
       : baseFolder
-  if (!baseFolder) {
+  if (!folderFromConf) {
     throw new Error('Base folder configuration is not defined')
   }
   const cleanFolderPath = folderFromConf.replace('/./', '')
@@ -22348,7 +22407,7 @@ function getBaseFolder(baseFolder) {
 }
 
 function getDataCatererVersion(dataCatererVersion) {
-  return !dataCatererVersion ? '0.16.1' : dataCatererVersion
+  return !dataCatererVersion ? '0.17.3' : dataCatererVersion
 }
 
 function getConfigurationItem(item, defaultValue, requiredNonEmpty = false) {
@@ -22376,7 +22435,7 @@ function getConfiguration() {
   let baseFolder = process.env.BASE_FOLDER
   let dataCatererVersion = process.env.DATA_CATERER_VERSION
 
-  logger.debug('Checking if GitHub Action properties defined')
+  logger.debug(`${PREFIX} Reading configuration from environment/actions`)
   if (core) {
     applicationConfig = getConfigurationItem(
       'configuration_file',
@@ -22406,23 +22465,25 @@ function getConfiguration() {
  * @returns {Promise<void>} Resolves when the action is complete.
  */
 async function run() {
-  logger.info('Starting insta-integration run')
+  logger.logSectionStart('insta-integration')
   try {
     const config = getConfiguration()
 
-    // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-    logger.debug(`Using config file: ${config.applicationConfig}`)
-    logger.debug(`Using insta-infra folder: ${config.instaInfraFolder}`)
-    logger.debug(`Using base folder: ${config.baseFolder}`)
-    logger.debug(`Using data-caterer version: ${config.dataCatererVersion}`)
+    logger.debug(`${PREFIX} Configuration:`)
+    logger.debug(`${PREFIX}   Config file: ${config.applicationConfig}`)
+    logger.debug(`${PREFIX}   Insta-infra folder: ${config.instaInfraFolder}`)
+    logger.debug(`${PREFIX}   Base folder: ${config.baseFolder}`)
+    logger.debug(
+      `${PREFIX}   Data-caterer version: ${config.dataCatererVersion}`
+    )
+
     const result = runIntegrationTests(config)
     // eslint-disable-next-line github/no-then
     return await result.then(() => {
-      logger.info('insta-integration run completed')
+      logger.logSuccess(PREFIX, 'Integration tests completed')
     })
   } catch (error) {
-    // Fail the workflow run if an error occurs
-    logger.error('Failed to run insta-integration. ', error)
+    logger.logError(PREFIX, 'Integration tests failed', error)
     core.setFailed(error.message)
     throw error
   }
@@ -22784,15 +22845,16 @@ const { execSync } = __nccwpck_require__(2081)
 const core = __nccwpck_require__(2186)
 const logger = __nccwpck_require__(9048)
 
+const PREFIX = logger.PREFIX.DOCKER
+
 function runDockerImage(dockerCommand, appIndex) {
-  logger.debug(
-    `Running docker command for data-caterer, command=${dockerCommand}`
-  )
+  logger.debug(`${PREFIX} Running command: ${dockerCommand}`)
   try {
     execSync(dockerCommand)
+    logger.info(`${PREFIX} Container data-caterer-${appIndex} started`)
   } catch (error) {
-    logger.error('Failed to run data caterer docker image')
-    logger.info('Checking data-caterer logs')
+    logger.logError(PREFIX, 'Failed to run data-caterer container', error)
+    logger.info(`${PREFIX} Retrieving container logs for debugging...`)
     logOutContainerLogs(`data-caterer-${appIndex}`, false)
     core.setFailed(error)
     throw new Error(error)
@@ -22801,32 +22863,33 @@ function runDockerImage(dockerCommand, appIndex) {
 
 function removeContainer(containerName) {
   try {
-    // Check if there is a data-caterer container or not
     const dataCatererContainer = execSync(
       `docker ps -a -q -f name=^/${containerName}$`
     ).toString()
-    logger.debug(
-      `Result from checking docker for container: ${dataCatererContainer}`
-    )
     if (dataCatererContainer.length > 0) {
-      logger.debug(`Attempting to remove ${containerName} Docker container`)
+      logger.debug(`${PREFIX} Removing existing container: ${containerName}`)
       execSync(`docker rm ${containerName}`)
+      logger.debug(`${PREFIX} Container removed: ${containerName}`)
     }
   } catch (error) {
-    logger.warn(error)
+    logger.warn(
+      `${PREFIX} Could not remove container ${containerName}: ${error.message}`
+    )
   }
 }
 
 function createDockerNetwork() {
-  // Check if network is created, create if it isn't
   try {
     const networkDetails = execSync('docker network ls')
     if (!networkDetails.toString().includes('insta-infra_default')) {
-      logger.info('Creating docker network: insta-infra_default')
+      logger.info(`${PREFIX} Creating network: insta-infra_default`)
       execSync('docker network create insta-infra_default')
+      logger.debug(`${PREFIX} Network created successfully`)
+    } else {
+      logger.debug(`${PREFIX} Network insta-infra_default already exists`)
     }
   } catch (error) {
-    logger.error('Failed to check Docker network')
+    logger.logError(PREFIX, 'Failed to create Docker network', error)
     throw new Error(error)
   }
 }
@@ -22836,29 +22899,36 @@ function isContainerFinished(containerName) {
   const isExited = execSync(checkContainerExited)
   if (isExited.toString().length > 0) {
     logger.debug(
-      `${containerName} docker container has finished, checking for exit code`
+      `${PREFIX} Container ${containerName} has exited, checking exit code`
     )
     const exitedSuccessfully = execSync(`${checkContainerExited} -f exited=0`)
     if (exitedSuccessfully.toString().length > 0) {
-      logger.debug(`${containerName} docker container finished successfully`)
+      logger.info(`${PREFIX} Container ${containerName} completed successfully`)
     } else {
-      logger.error(
-        `${containerName} docker container has non-zero exit code, showing container logs`
+      logger.logError(
+        PREFIX,
+        `Container ${containerName} exited with non-zero code`
       )
+      logger.info(`${PREFIX} Container logs:`)
       logOutContainerLogs(containerName, false)
       throw new Error(`${containerName} docker container failed`)
     }
     return true
   } else {
-    logger.debug(`${containerName} docker container has not finished`)
+    logger.debug(`${PREFIX} Container ${containerName} still running`)
     return false
   }
 }
 
 function waitForContainerToFinish(containerName) {
-  const poll = resolve => {
-    if (isContainerFinished(containerName)) resolve()
-    else setTimeout(_ => poll(resolve), 500)
+  logger.info(`${PREFIX} Waiting for container ${containerName} to finish...`)
+  const poll = (resolve, reject) => {
+    try {
+      if (isContainerFinished(containerName)) resolve()
+      else setTimeout(() => poll(resolve, reject), 500)
+    } catch (error) {
+      reject(error)
+    }
   }
 
   return new Promise(poll)
@@ -22867,18 +22937,18 @@ function waitForContainerToFinish(containerName) {
 function logOutContainerLogs(containerName, isDebug = true) {
   try {
     const containerLogs = execSync(`docker logs ${containerName}`).toString()
+    const logFn = isDebug ? logger.debug.bind(logger) : logger.info.bind(logger)
     // eslint-disable-next-line github/array-foreach
     containerLogs.split('\n').forEach(line => {
-      if (isDebug) {
-        logger.debug(line)
-      } else {
-        logger.error(line)
+      if (line.trim()) {
+        logFn(`  ${line}`)
       }
     })
   } catch (e) {
-    logger.error(
-      'Failed to retrieve container logs, container-name=',
-      containerName
+    logger.logError(
+      PREFIX,
+      `Failed to retrieve logs for container ${containerName}`,
+      e
     )
   }
 }
@@ -22905,16 +22975,25 @@ const yaml = __nccwpck_require__(1917)
 const core = __nccwpck_require__(2186)
 const fs = __nccwpck_require__(7147)
 
+const PREFIX = logger.PREFIX.CONFIG
+
 /**
  * Parse the configuration file as YAML
  * @param configFile  YAML configuration file
  * @returns {*} Parsed YAML object
  */
 function parseConfigFile(configFile) {
-  logger.debug(`Parsing config file=${configFile}`)
+  logger.info(`${PREFIX} Loading configuration: ${configFile}`)
   try {
-    return yaml.load(fs.readFileSync(configFile, 'utf8'))
+    const config = yaml.load(fs.readFileSync(configFile, 'utf8'))
+    logger.debug(`${PREFIX} Configuration loaded successfully`)
+    return config
   } catch (error) {
+    logger.logError(
+      PREFIX,
+      `Failed to parse configuration file: ${configFile}`,
+      error
+    )
     core.setFailed(error.message)
     throw Error(
       `Failed to parse configuration file, config-file=${configFile}`,
@@ -22925,35 +23004,38 @@ function parseConfigFile(configFile) {
 
 function writeToFile(folder, fileName, content, isPlanText) {
   if (!fs.existsSync(folder)) {
-    logger.debug(`Creating folder since it does not exist, folder=${folder}`)
+    logger.debug(`${PREFIX} Creating folder: ${folder}`)
     fs.mkdirSync(folder, { recursive: true })
   }
   const fileContent = isPlanText ? content : yaml.dump(content)
-  logger.debug(`Creating file, file-path=${folder}/${fileName}`)
+  const filePath = `${folder}/${fileName}`
+  logger.debug(`${PREFIX} Writing file: ${filePath}`)
   try {
-    fs.writeFileSync(`${folder}/${fileName}`, fileContent, 'utf-8')
+    fs.writeFileSync(filePath, fileContent, 'utf-8')
   } catch (err) {
-    logger.error(`Failed to write to file, file-name=${folder}/${fileName}`)
+    logger.logError(PREFIX, `Failed to write file: ${filePath}`, err)
     throw new Error(err)
   }
 }
 
 async function cleanAppDoneFiles(parsedConfig, sharedFolder, timeout = 4000) {
-  // Clean up 'app-*-done' files in shared directory
   await new Promise(resolve => {
     setTimeout(resolve, timeout)
   })
-  logger.debug('Removing files relating to notifying the application is done')
+  logger.debug(`${PREFIX} Cleaning up app notification files`)
   for (const [i] of parsedConfig.run.entries()) {
     try {
       fs.unlinkSync(`${sharedFolder}/app-${i}-done`)
     } catch (error) {
-      logger.debug(error)
+      logger.debug(`${PREFIX} No file to clean: app-${i}-done`)
     }
   }
 }
 
 async function checkFileExistsWithTimeout(filePath, appIndex, timeout = 60000) {
+  logger.debug(
+    `${PREFIX} Waiting for file: ${filePath} (timeout: ${timeout}ms)`
+  )
   await new Promise(function (resolve, reject) {
     // eslint-disable-next-line prefer-const
     let watcher
@@ -22962,24 +23044,28 @@ async function checkFileExistsWithTimeout(filePath, appIndex, timeout = 60000) {
       if (watcher) {
         watcher.close()
       }
-      logger.info('Checking data-caterer logs')
+      logger.warn(`${PREFIX} Timeout waiting for file: ${filePath}`)
+      logger.info(
+        `${logger.PREFIX.DOCKER} Retrieving data-caterer logs for debugging...`
+      )
       try {
         const dataCatererLogs = execSync(`docker logs data-caterer-${appIndex}`)
         logger.info(dataCatererLogs.toString())
       } catch (e) {
-        logger.error('Failed to get data-caterer logs', e)
+        logger.logError(
+          logger.PREFIX.DOCKER,
+          'Failed to retrieve data-caterer logs',
+          e
+        )
       }
       reject(
-        new Error(
-          `File did not exist and was not created during the timeout, file=${filePath}`
-        )
+        new Error(`Timeout: File not created within ${timeout}ms: ${filePath}`)
       )
     }, timeout)
 
     fs.access(filePath, fs.constants.R_OK, function (err) {
-      logger.debug(`Checking if file exists, file=${filePath}`)
       if (!err) {
-        logger.debug(`File exists, file=${filePath}`)
+        logger.debug(`${PREFIX} File found: ${filePath}`)
         clearTimeout(timer)
         if (watcher) {
           watcher.close()
@@ -22990,15 +23076,26 @@ async function checkFileExistsWithTimeout(filePath, appIndex, timeout = 60000) {
 
     const dir = dirname(filePath)
     const currBasename = basename(filePath)
-    watcher = fs.watch(dir, function (eventType, filename) {
-      if (eventType === 'rename' && filename === currBasename) {
-        clearTimeout(timer)
-        if (watcher) {
-          watcher.close()
+    try {
+      watcher = fs.watch(dir, function (eventType, filename) {
+        if (eventType === 'rename' && filename === currBasename) {
+          clearTimeout(timer)
+          if (watcher) {
+            watcher.close()
+          }
+          resolve()
         }
-        resolve()
-      }
-    })
+      })
+      watcher.on('error', function (watchError) {
+        logger.debug(
+          `${PREFIX} File watcher error for ${dir}: ${watchError.message}`
+        )
+      })
+    } catch (watchError) {
+      logger.debug(
+        `${PREFIX} Could not watch directory ${dir}: ${watchError.message}`
+      )
+    }
   })
   await new Promise(resolve => {
     setTimeout(resolve, 1000)
@@ -23007,28 +23104,26 @@ async function checkFileExistsWithTimeout(filePath, appIndex, timeout = 60000) {
 
 function showLogFileContent(logFile) {
   if (logger.isDebugEnabled()) {
-    logger.debug('Showing application logs')
+    logger.debug(`${logger.PREFIX.APP} Application logs from: ${logFile}`)
     if (fs.existsSync(logFile)) {
       const logFileContent = fs.readFileSync(logFile).toString()
       // eslint-disable-next-line github/array-foreach
       logFileContent.split('\n').forEach(logLine => {
-        logger.debug(logLine)
+        if (logLine.trim()) {
+          logger.debug(`  ${logLine}`)
+        }
       })
     } else {
-      logger.error(
-        'Unable to show log file content, log file does not exist, log-file=',
-        logFile
-      )
+      logger.warn(`${logger.PREFIX.APP} Log file does not exist: ${logFile}`)
     }
   }
 }
 
 function createFolders(configurationFolder, sharedFolder, testResultsFolder) {
-  logger.debug(
-    `Using data caterer configuration folder: ${configurationFolder}`
-  )
-  logger.debug(`Using shared folder: ${sharedFolder}`)
-  logger.debug(`Using test results folder: ${testResultsFolder}`)
+  logger.debug(`${PREFIX} Creating folders:`)
+  logger.debug(`${PREFIX}   Configuration: ${configurationFolder}`)
+  logger.debug(`${PREFIX}   Shared: ${sharedFolder}`)
+  logger.debug(`${PREFIX}   Results: ${testResultsFolder}`)
   fs.mkdirSync(configurationFolder, { recursive: true })
   fs.mkdirSync(sharedFolder, { recursive: true })
   fs.mkdirSync(testResultsFolder, { recursive: true })
@@ -23054,30 +23149,34 @@ const { execSync } = __nccwpck_require__(2081)
 const logger = __nccwpck_require__(9048)
 const { isContainerFinished } = __nccwpck_require__(2519)
 
+const PREFIX = logger.PREFIX.SERVICE
+
 function checkInstaInfraExists(instaInfraFolder) {
   if (!fs.existsSync(instaInfraFolder)) {
-    logger.debug('insta-infra does not exist, checking out repository')
+    logger.info(`${PREFIX} Cloning insta-infra repository...`)
     try {
       execSync(
         `git clone git@github.com:data-catering/insta-infra.git ${instaInfraFolder}`
       )
+      logger.info(`${PREFIX} Repository cloned successfully via SSH`)
     } catch (error) {
-      logger.error(
-        `Failed to checkout insta-infra repository to ${instaInfraFolder} folder, trying via https`
-      )
-      logger.error(error)
+      logger.warn(`${PREFIX} SSH clone failed, trying HTTPS...`)
       try {
         execSync(
           `git clone https://github.com/data-catering/insta-infra.git ${instaInfraFolder}`
         )
+        logger.info(`${PREFIX} Repository cloned successfully via HTTPS`)
       } catch (httpsError) {
-        logger.error(
-          `Failed to checkout insta-infra repository via https to ${instaInfraFolder}`
+        logger.logError(
+          PREFIX,
+          'Failed to clone insta-infra repository',
+          httpsError
         )
-        logger.error(httpsError)
         throw new Error('Failed to checkout insta-infra repository')
       }
     }
+  } else {
+    logger.debug(`${PREFIX} insta-infra already exists at ${instaInfraFolder}`)
   }
 }
 
@@ -23087,7 +23186,7 @@ function checkInstaInfraExists(instaInfraFolder) {
  * @param serviceNames Array of services
  */
 function checkValidServiceNames(instaInfraFolder, serviceNames) {
-  logger.debug('Checking insta-infra to see what services are supported')
+  logger.debug(`${PREFIX} Validating service names: ${serviceNames.join(', ')}`)
   try {
     const supportedServices = execSync(`${instaInfraFolder}/run.sh -l`, {
       encoding: 'utf-8'
@@ -23096,13 +23195,16 @@ function checkValidServiceNames(instaInfraFolder, serviceNames) {
     serviceNames.forEach(service => {
       if (!supportedServices.includes(service)) {
         throw new Error(
-          `Found unsupported insta-infra service in configuration, service=${service}`
+          `Unsupported service: ${service}. Check insta-infra documentation for supported services.`
         )
       }
     })
+    logger.debug(`${PREFIX} All services validated successfully`)
   } catch (error) {
-    logger.error(
-      `Failed to check if services are supported by insta-infra, services=${serviceNames}`
+    logger.logError(
+      PREFIX,
+      `Service validation failed for: ${serviceNames.join(', ')}`,
+      error
     )
     throw new Error(error)
   }
@@ -23110,28 +23212,37 @@ function checkValidServiceNames(instaInfraFolder, serviceNames) {
 
 function runServices(instaInfraFolder, serviceNames, envVars) {
   checkValidServiceNames(instaInfraFolder, serviceNames)
-  const serviceNamesInstaInfra = serviceNames.join(' ')
-  logger.info(`Running services=${serviceNamesInstaInfra}`)
+  const serviceNamesStr = serviceNames.join(' ')
+  logger.info(`${PREFIX} Starting services: ${serviceNamesStr}`)
+
   for (const env of Object.entries(envVars)) {
     process.env[env[0]] = env[1]
+    logger.debug(`${PREFIX} Set env var: ${env[0]}`)
   }
+
   try {
-    execSync(`./run.sh ${serviceNamesInstaInfra}`, {
+    execSync(`./run.sh ${serviceNamesStr}`, {
       cwd: instaInfraFolder,
       stdio: 'pipe'
     })
+    logger.logSuccess(PREFIX, `Services started: ${serviceNamesStr}`)
   } catch (error) {
-    logger.error(`Failed to run services=${serviceNamesInstaInfra}`)
+    logger.logError(PREFIX, `Failed to start services: ${serviceNamesStr}`)
     logger.error(
-      `Error details, status=${error.status}, message=${error.message},
-      stderr=${error.stderr}, stdout=${error.stdout}`
+      `${PREFIX} Details: status=${error.status}, stderr=${error.stderr}, stdout=${error.stdout}`
     )
-    // eslint-disable-next-line github/array-foreach
-    serviceNames.forEach(serviceName => {
-      logger.debug(`Checking if service is unhealthy, service=${serviceName}`)
-      isContainerFinished(serviceName)
-      throw new Error(error)
-    })
+
+    for (const serviceName of serviceNames) {
+      logger.debug(`${PREFIX} Checking container health: ${serviceName}`)
+      try {
+        isContainerFinished(serviceName)
+      } catch (containerError) {
+        logger.debug(
+          `${PREFIX} Container ${serviceName} check failed: ${containerError.message}`
+        )
+      }
+    }
+    throw new Error(error)
   }
 }
 
@@ -23145,11 +23256,81 @@ module.exports = { checkInstaInfraExists, runServices }
 
 const { createLogger, format, transports } = __nccwpck_require__(4158)
 
+const LOG_LEVEL = process.env.LOG_LEVEL || 'info'
+
+// Custom format for cleaner, more readable logs
+const customFormat = format.printf(({ level, message, timestamp, ...meta }) => {
+  const metaStr = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : ''
+  return `${timestamp} [${level.toUpperCase().padEnd(5)}] ${message}${metaStr}`
+})
+
 const logger = createLogger({
-  level: process.env.LOG_LEVEL ? process.env.LOG_LEVEL : 'info',
-  format: format.combine(format.timestamp(), format.json()),
+  level: LOG_LEVEL,
+  format: format.combine(
+    format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    customFormat
+  ),
   transports: [new transports.Console({})]
 })
+
+// Add helper method to check if debug is enabled
+logger.isDebugEnabled = function () {
+  return LOG_LEVEL === 'debug'
+}
+
+// Prefixes for consistent logging
+const PREFIX = {
+  DOCKER: '[Docker]',
+  SERVICE: '[Service]',
+  CONFIG: '[Config]',
+  APP: '[App]',
+  DATA_GEN: '[DataGen]',
+  VALIDATION: '[Validation]',
+  SUMMARY: '[Summary]'
+}
+
+// Helper functions for consistent logging patterns
+function logStep(step, message) {
+  logger.info(`${step} ${message}`)
+}
+
+function logError(prefix, message, error = null) {
+  if (error) {
+    logger.error(`${prefix} ${message}: ${error.message || error}`)
+  } else {
+    logger.error(`${prefix} ${message}`)
+  }
+}
+
+function logSuccess(prefix, message) {
+  logger.info(`${prefix} ✓ ${message}`)
+}
+
+function logSectionStart(title) {
+  logger.info(`${'─'.repeat(50)}`)
+  logger.info(`${title}`)
+  logger.info(`${'─'.repeat(50)}`)
+}
+
+function logSummary(title, items) {
+  logger.info('')
+  logger.info(`${'═'.repeat(50)}`)
+  logger.info(`${PREFIX.SUMMARY} ${title}`)
+  logger.info(`${'═'.repeat(50)}`)
+  for (const [key, value] of Object.entries(items)) {
+    logger.info(`  ${key}: ${value}`)
+  }
+  logger.info(`${'═'.repeat(50)}`)
+  logger.info('')
+}
+
+// Attach helpers to logger object for easy access
+logger.PREFIX = PREFIX
+logger.logStep = logStep
+logger.logError = logError
+logger.logSuccess = logSuccess
+logger.logSectionStart = logSectionStart
+logger.logSummary = logSummary
 
 module.exports = logger
 
