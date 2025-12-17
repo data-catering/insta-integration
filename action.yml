@@ -10,9 +10,6 @@ inputs:
   configuration_file:
     description: 'File path to configuration file.'
     default: 'insta-integration.yaml'
-  insta_infra_folder:
-    description: 'Folder path to insta-infra.'
-    default: 'integration-test/insta-infra'
   base_folder:
     description: 'Folder path to use for execution files.'
     default: '/home/runner/work'
@@ -44,20 +41,12 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    - name: 'Checkout insta-infra repo'
-      uses: 'actions/checkout@v4'
-      with:
-        repository: 'data-catering/insta-infra'
-        path: '${{ inputs.insta_infra_folder }}'
-        ref: 'v1.0.0'
-    - name: 'Cache Docker images'
-      id: 'docker-cache'
-      uses: 'ScribeMD/docker-cache@0.5.0'
-      with:
-        key:
-          docker-${{ runner.os }}-${{
-          hashFiles(format('{0}/docker-compose.yaml',
-          inputs.insta_infra_folder)) }}
+    - name: 'Install insta CLI'
+      shell: 'bash'
+      run:
+        'curl -fsSL
+        https://raw.githubusercontent.com/data-catering/insta-infra/main/install.sh
+        | sh'
     - uses: 'actions/setup-node@v4'
       with:
         node-version: '20.x'
@@ -68,7 +57,5 @@ runs:
       env:
         CONFIGURATION_FILE:
           '${{ github.workspace }}/${{ inputs.configuration_file }}'
-        INSTA_INFRA_FOLDER:
-          '${{ github.workspace }}/${{ inputs.insta_infra_folder }}'
         BASE_FOLDER: '${{ github.workspace }}'
         DATA_CATERER_VERSION: '${{ inputs.data_caterer_version }}'

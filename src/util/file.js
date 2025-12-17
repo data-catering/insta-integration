@@ -149,7 +149,22 @@ function showLogFileContent(logFile) {
   }
 }
 
+/**
+ * Clean folder contents to ensure fresh state between runs
+ * @param {string} folder - Folder path to clean
+ */
+function cleanFolder(folder) {
+  if (fs.existsSync(folder)) {
+    logger.debug(`${PREFIX} Cleaning folder: ${folder}`)
+    fs.rmSync(folder, { recursive: true, force: true })
+  }
+}
+
 function createFolders(configurationFolder, sharedFolder, testResultsFolder) {
+  // Clean folders first to ensure fresh state between runs
+  cleanFolder(configurationFolder)
+  cleanFolder(sharedFolder)
+
   logger.debug(`${PREFIX} Creating folders:`)
   logger.debug(`${PREFIX}   Configuration: ${configurationFolder}`)
   logger.debug(`${PREFIX}   Shared: ${sharedFolder}`)
@@ -165,5 +180,6 @@ module.exports = {
   cleanAppDoneFiles,
   checkFileExistsWithTimeout,
   showLogFileContent,
-  createFolders
+  createFolders,
+  cleanFolder
 }

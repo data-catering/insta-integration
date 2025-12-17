@@ -310,7 +310,7 @@ For example, you can print out the results like below:
 ```yaml
 - name: Run integration tests
   id: test-action
-  uses: data-catering/insta-integration@v1
+  uses: data-catering/insta-integration@v6
 - name: Print Output
   id: output
   run: |

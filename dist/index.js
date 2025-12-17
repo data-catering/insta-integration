@@ -22243,7 +22243,11 @@ function showTestResultSummary(testResults) {
           validation.numValidations - validation.numSuccess
         if (validation.errorValidations) {
           for (const errorValidation of validation.errorValidations) {
-            failedValidationDetails.push(errorValidation)
+            failedValidationDetails.push({
+              ...errorValidation,
+              dataSourceName: validation.dataSourceName,
+              options: validation.options
+            })
           }
         }
       }
@@ -22261,7 +22265,15 @@ function showTestResultSummary(testResults) {
     logger.info(`${PREFIX_VALIDATION} Failed Validation Details:`)
     for (const errorValidation of failedValidationDetails) {
       const validationStr = JSON.stringify(errorValidation.validation)
-      logger.error(`${PREFIX_VALIDATION}   ✗ ${validationStr}`)
+      const dataSource = errorValidation.dataSourceName || 'unknown'
+      const options = errorValidation.options
+        ? JSON.stringify(errorValidation.options)
+        : ''
+      logger.error(`${PREFIX_VALIDATION}   ✗ Data Source: ${dataSource}`)
+      if (options) {
+        logger.error(`${PREFIX_VALIDATION}     Options: ${options}`)
+      }
+      logger.error(`${PREFIX_VALIDATION}     Validation: ${validationStr}`)
       logger.error(
         `${PREFIX_VALIDATION}     Errors: ${errorValidation.numErrors}`
       )
@@ -22309,27 +22321,22 @@ function showTestResultSummary(testResults) {
 }
 
 /**
- * Given configuration file and insta-infra folder, do the following:
+ * Given configuration file, do the following:
  * - Get services and initial data set up
  * - Configure and run insta-infra to startup services
  * - Run command for application startup
  * - Setup data-caterer configuration for data generation and validation
  * - Run data-caterer
  * - Return back summarised results
- * @param config Base configuration with config file path, insta-infra folder, execution folder, and docker token
+ * @param config Base configuration with config file path, execution folder, and docker token
  * @returns {Promise<*>} Resolves with test results
  */
 async function runIntegrationTests(config) {
-  if (config.instaInfraFolder.includes(' ')) {
-    throw new Error(
-      `Invalid insta-infra folder path (contains spaces): ${config.instaInfraFolder}`
-    )
-  }
   const parsedConfig = parseConfigFile(config.applicationConfig)
   const applicationConfigDirectory = config.applicationConfig.startsWith('/')
     ? dirname(config.applicationConfig)
     : `${process.cwd()}/${dirname(config.applicationConfig)}`
-  checkInstaInfraExists(config.instaInfraFolder)
+  checkInstaInfraExists()
 
   const { serviceNames, envVars } = extractServiceNamesAndEnv(
     parsedConfig,
@@ -22340,7 +22347,7 @@ async function runIntegrationTests(config) {
     logger.info(
       `${logger.PREFIX.SERVICE} Starting ${serviceNames.length} service(s)`
     )
-    runServices(config.instaInfraFolder, serviceNames, envVars)
+    runServices(serviceNames, envVars)
   } else {
     logger.debug(`${logger.PREFIX.SERVICE} No services to start`)
   }
@@ -22431,7 +22438,6 @@ function getConfigurationItem(item, defaultValue, requiredNonEmpty = false) {
 
 function getConfiguration() {
   let applicationConfig = process.env.CONFIGURATION_FILE
-  let instaInfraFolder = process.env.INSTA_INFRA_FOLDER
   let baseFolder = process.env.BASE_FOLDER
   let dataCatererVersion = process.env.DATA_CATERER_VERSION
 
@@ -22440,10 +22446,6 @@ function getConfiguration() {
     applicationConfig = getConfigurationItem(
       'configuration_file',
       applicationConfig
-    )
-    instaInfraFolder = getConfigurationItem(
-      'insta_infra_folder',
-      instaInfraFolder
     )
     baseFolder = getConfigurationItem('base_folder', baseFolder)
     dataCatererVersion = getConfigurationItem(
@@ -22454,7 +22456,6 @@ function getConfiguration() {
 
   return {
     applicationConfig,
-    instaInfraFolder,
     baseFolder,
     dataCatererVersion
   }
@@ -22471,7 +22472,6 @@ async function run() {
 
     logger.debug(`${PREFIX} Configuration:`)
     logger.debug(`${PREFIX}   Config file: ${config.applicationConfig}`)
-    logger.debug(`${PREFIX}   Insta-infra folder: ${config.instaInfraFolder}`)
     logger.debug(`${PREFIX}   Base folder: ${config.baseFolder}`)
     logger.debug(
       `${PREFIX}   Data-caterer version: ${config.dataCatererVersion}`
@@ -23119,7 +23119,22 @@ function showLogFileContent(logFile) {
   }
 }
 
+/**
+ * Clean folder contents to ensure fresh state between runs
+ * @param {string} folder - Folder path to clean
+ */
+function cleanFolder(folder) {
+  if (fs.existsSync(folder)) {
+    logger.debug(`${PREFIX} Cleaning folder: ${folder}`)
+    fs.rmSync(folder, { recursive: true, force: true })
+  }
+}
+
 function createFolders(configurationFolder, sharedFolder, testResultsFolder) {
+  // Clean folders first to ensure fresh state between runs
+  cleanFolder(configurationFolder)
+  cleanFolder(sharedFolder)
+
   logger.debug(`${PREFIX} Creating folders:`)
   logger.debug(`${PREFIX}   Configuration: ${configurationFolder}`)
   logger.debug(`${PREFIX}   Shared: ${sharedFolder}`)
@@ -23135,7 +23150,8 @@ module.exports = {
   cleanAppDoneFiles,
   checkFileExistsWithTimeout,
   showLogFileContent,
-  createFolders
+  createFolders,
+  cleanFolder
 }
 
 
@@ -23144,58 +23160,53 @@ module.exports = {
 /***/ 9758:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-const fs = __nccwpck_require__(7147)
 const { execSync } = __nccwpck_require__(2081)
 const logger = __nccwpck_require__(9048)
 const { isContainerFinished } = __nccwpck_require__(2519)
 
 const PREFIX = logger.PREFIX.SERVICE
+const INSTA_BINARY = 'insta'
 
-function checkInstaInfraExists(instaInfraFolder) {
-  if (!fs.existsSync(instaInfraFolder)) {
-    logger.info(`${PREFIX} Cloning insta-infra repository...`)
+/**
+ * Check if insta CLI is installed, if not install it
+ */
+function checkInstaInfraExists() {
+  try {
+    execSync(`which ${INSTA_BINARY}`, { encoding: 'utf-8', stdio: 'pipe' })
+    logger.debug(`${PREFIX} insta CLI is already installed`)
+  } catch {
+    logger.info(`${PREFIX} Installing insta CLI...`)
     try {
       execSync(
-        `git clone git@github.com:data-catering/insta-infra.git ${instaInfraFolder}`
+        'curl -fsSL https://raw.githubusercontent.com/data-catering/insta-infra/main/install.sh | sh',
+        { stdio: 'pipe' }
       )
-      logger.info(`${PREFIX} Repository cloned successfully via SSH`)
-    } catch (error) {
-      logger.warn(`${PREFIX} SSH clone failed, trying HTTPS...`)
-      try {
-        execSync(
-          `git clone https://github.com/data-catering/insta-infra.git ${instaInfraFolder}`
-        )
-        logger.info(`${PREFIX} Repository cloned successfully via HTTPS`)
-      } catch (httpsError) {
-        logger.logError(
-          PREFIX,
-          'Failed to clone insta-infra repository',
-          httpsError
-        )
-        throw new Error('Failed to checkout insta-infra repository')
-      }
+      logger.info(`${PREFIX} insta CLI installed successfully`)
+    } catch (installError) {
+      logger.logError(PREFIX, 'Failed to install insta CLI', installError)
+      throw new Error(
+        'Failed to install insta CLI. Please install manually: https://github.com/data-catering/insta-infra'
+      )
     }
-  } else {
-    logger.debug(`${PREFIX} insta-infra already exists at ${instaInfraFolder}`)
   }
 }
 
 /**
  * Check if service names are supported by insta-infra
- * @param instaInfraFolder Folder where insta-infra is checked out
  * @param serviceNames Array of services
  */
-function checkValidServiceNames(instaInfraFolder, serviceNames) {
+function checkValidServiceNames(serviceNames) {
   logger.debug(`${PREFIX} Validating service names: ${serviceNames.join(', ')}`)
   try {
-    const supportedServices = execSync(`${instaInfraFolder}/run.sh -l`, {
-      encoding: 'utf-8'
+    const supportedServices = execSync(`${INSTA_BINARY} -l`, {
+      encoding: 'utf-8',
+      stdio: 'pipe'
     })
     // eslint-disable-next-line github/array-foreach
     serviceNames.forEach(service => {
       if (!supportedServices.includes(service)) {
         throw new Error(
-          `Unsupported service: ${service}. Check insta-infra documentation for supported services.`
+          `Unsupported service: ${service}. Check insta-infra documentation for supported services: https://github.com/data-catering/insta-infra`
         )
       }
     })
@@ -23210,8 +23221,14 @@ function checkValidServiceNames(instaInfraFolder, serviceNames) {
   }
 }
 
-function runServices(instaInfraFolder, serviceNames, envVars) {
-  checkValidServiceNames(instaInfraFolder, serviceNames)
+/**
+ * Run services using insta CLI
+ * Data is NOT persisted by default to ensure clean state between runs
+ * @param serviceNames Array of service names to start
+ * @param envVars Environment variables to set
+ */
+function runServices(serviceNames, envVars) {
+  checkValidServiceNames(serviceNames)
   const serviceNamesStr = serviceNames.join(' ')
   logger.info(`${PREFIX} Starting services: ${serviceNamesStr}`)
 
@@ -23221,8 +23238,8 @@ function runServices(instaInfraFolder, serviceNames, envVars) {
   }
 
   try {
-    execSync(`./run.sh ${serviceNamesStr}`, {
-      cwd: instaInfraFolder,
+    // Note: NOT using -p flag to avoid data persistence between runs
+    execSync(`${INSTA_BINARY} ${serviceNamesStr}`, {
       stdio: 'pipe'
     })
     logger.logSuccess(PREFIX, `Services started: ${serviceNamesStr}`)
@@ -23246,7 +23263,27 @@ function runServices(instaInfraFolder, serviceNames, envVars) {
   }
 }
 
-module.exports = { checkInstaInfraExists, runServices }
+/**
+ * Shutdown services using insta CLI
+ * @param serviceNames Optional array of service names to stop. If empty, stops all services.
+ */
+function shutdownServices(serviceNames = []) {
+  try {
+    if (serviceNames.length > 0) {
+      const serviceNamesStr = serviceNames.join(' ')
+      logger.info(`${PREFIX} Shutting down services: ${serviceNamesStr}`)
+      execSync(`${INSTA_BINARY} -d ${serviceNamesStr}`, { stdio: 'pipe' })
+    } else {
+      logger.info(`${PREFIX} Shutting down all services`)
+      execSync(`${INSTA_BINARY} -d`, { stdio: 'pipe' })
+    }
+    logger.logSuccess(PREFIX, 'Services shut down successfully')
+  } catch (error) {
+    logger.warn(`${PREFIX} Failed to shut down services: ${error.message}`)
+  }
+}
+
+module.exports = { checkInstaInfraExists, runServices, shutdownServices }
 
 
 /***/ }),

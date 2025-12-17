@@ -4,7 +4,7 @@ const { program } = require('commander')
 const { run } = require('./main')
 
 program
-  .version('1.2.0')
+  .version('1.2.1')
   .description(
     'insta-integration CLI - Simple integration testing for any application or job'
   )
@@ -23,17 +23,9 @@ program
     'Version of data-caterer Docker image',
     '0.17.3'
   )
-  .option(
-    '-i, --insta-infra-folder <folder>',
-    'Folder pathway to insta-infra repository',
-    `${process.env.HOME}/.insta-integration/insta-infra`
-  )
   .action(options => {
     if (options.configFile) {
       process.env.CONFIGURATION_FILE = options.configFile
-    }
-    if (options.instaInfraFolder) {
-      process.env.INSTA_INFRA_FOLDER = options.instaInfraFolder
     }
     if (options.baseFolder) {
       process.env.BASE_FOLDER = options.baseFolder

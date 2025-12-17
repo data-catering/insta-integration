@@ -51,7 +51,6 @@ function getConfigurationItem(item, defaultValue, requiredNonEmpty = false) {
 
 function getConfiguration() {
   let applicationConfig = process.env.CONFIGURATION_FILE
-  let instaInfraFolder = process.env.INSTA_INFRA_FOLDER
   let baseFolder = process.env.BASE_FOLDER
   let dataCatererVersion = process.env.DATA_CATERER_VERSION
 
@@ -60,10 +59,6 @@ function getConfiguration() {
     applicationConfig = getConfigurationItem(
       'configuration_file',
       applicationConfig
-    )
-    instaInfraFolder = getConfigurationItem(
-      'insta_infra_folder',
-      instaInfraFolder
     )
     baseFolder = getConfigurationItem('base_folder', baseFolder)
     dataCatererVersion = getConfigurationItem(
@@ -74,7 +69,6 @@ function getConfiguration() {
 
   return {
     applicationConfig,
-    instaInfraFolder,
     baseFolder,
     dataCatererVersion
   }
@@ -91,7 +85,6 @@ async function run() {
 
     logger.debug(`${PREFIX} Configuration:`)
     logger.debug(`${PREFIX}   Config file: ${config.applicationConfig}`)
-    logger.debug(`${PREFIX}   Insta-infra folder: ${config.instaInfraFolder}`)
     logger.debug(`${PREFIX}   Base folder: ${config.baseFolder}`)
     logger.debug(
       `${PREFIX}   Data-caterer version: ${config.dataCatererVersion}`

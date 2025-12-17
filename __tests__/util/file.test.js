@@ -7,7 +7,8 @@ const {
   cleanAppDoneFiles,
   checkFileExistsWithTimeout,
   createFolders,
-  showLogFileContent
+  showLogFileContent,
+  cleanFolder
 } = require('../../src/util/file')
 const { expect } = require('@jest/globals')
 const logger = require('../../src/util/log')
@@ -231,15 +232,66 @@ describe('showLogFileContent', () => {
   })
 })
 
+describe('cleanFolder', () => {
+  beforeEach(() => {
+    jest.resetAllMocks()
+    jest.spyOn(fs, 'existsSync')
+    jest.spyOn(fs, 'rmSync')
+    jest.spyOn(logger, 'debug')
+  })
+
+  it('should remove folder if it exists', () => {
+    fs.existsSync.mockReturnValue(true)
+    cleanFolder('/path/to/folder')
+    expect(fs.rmSync).toHaveBeenCalledWith('/path/to/folder', {
+      recursive: true,
+      force: true
+    })
+    expect(logger.debug).toHaveBeenCalledWith(
+      '[Config] Cleaning folder: /path/to/folder'
+    )
+  })
+
+  it('should not attempt to remove folder if it does not exist', () => {
+    fs.existsSync.mockReturnValue(false)
+    cleanFolder('/path/to/nonexistent')
+    expect(fs.rmSync).not.toHaveBeenCalled()
+  })
+})
+
 describe('createFolders', () => {
   beforeEach(() => {
     jest.resetAllMocks()
+    jest.spyOn(fs, 'existsSync')
+    jest.spyOn(fs, 'rmSync')
     jest.spyOn(fs, 'mkdirSync')
     jest.spyOn(logger, 'debug')
   })
 
-  it('should create all specified folders', () => {
+  it('should clean and create all specified folders', () => {
+    fs.existsSync.mockReturnValue(true)
     createFolders('/config', '/shared', '/results')
+    // Verify folders are cleaned first
+    expect(fs.rmSync).toHaveBeenCalledWith('/config', {
+      recursive: true,
+      force: true
+    })
+    expect(fs.rmSync).toHaveBeenCalledWith('/shared', {
+      recursive: true,
+      force: true
+    })
+    // Verify folders are created
+    expect(fs.mkdirSync).toHaveBeenCalledWith('/config', { recursive: true })
+    expect(fs.mkdirSync).toHaveBeenCalledWith('/shared', { recursive: true })
+    expect(fs.mkdirSync).toHaveBeenCalledWith('/results', { recursive: true })
+  })
+
+  it('should create folders even if they do not exist (no cleanup needed)', () => {
+    fs.existsSync.mockReturnValue(false)
+    createFolders('/config', '/shared', '/results')
+    // Verify no cleanup attempted
+    expect(fs.rmSync).not.toHaveBeenCalled()
+    // Verify folders are created
     expect(fs.mkdirSync).toHaveBeenCalledWith('/config', { recursive: true })
     expect(fs.mkdirSync).toHaveBeenCalledWith('/shared', { recursive: true })
     expect(fs.mkdirSync).toHaveBeenCalledWith('/results', { recursive: true })

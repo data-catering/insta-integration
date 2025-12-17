@@ -1,8 +1,8 @@
 const {
   checkInstaInfraExists,
-  runServices
+  runServices,
+  shutdownServices
 } = require('../../src/util/insta-infra')
-const fs = require('fs')
 const { execSync } = require('child_process')
 const logger = require('../../src/util/log')
 const { isContainerFinished } = require('../../src/util/docker')
@@ -12,69 +12,65 @@ jest.mock('../../src/util/log')
 jest.mock('../../src/util/docker')
 
 describe('checkInstaInfraExists', () => {
-  it('should clone repository if insta-infra folder does not exist', () => {
-    jest.spyOn(fs, 'existsSync').mockReturnValue(false)
-    execSync.mockReturnValueOnce('success')
-    checkInstaInfraExists('/path/to/insta-infra')
-    expect(execSync).toHaveBeenCalledWith(
-      'git clone git@github.com:data-catering/insta-infra.git /path/to/insta-infra'
-    )
+  beforeEach(() => {
+    jest.resetAllMocks()
   })
 
-  it('should log error and retry with https if git clone via ssh fails', () => {
-    jest.spyOn(fs, 'existsSync').mockReturnValue(false)
+  it('should not install if insta CLI is already installed', () => {
+    execSync.mockReturnValueOnce('/usr/local/bin/insta')
+    checkInstaInfraExists()
+    expect(execSync).toHaveBeenCalledWith('which insta', {
+      encoding: 'utf-8',
+      stdio: 'pipe'
+    })
+    expect(execSync).toHaveBeenCalledTimes(1)
+  })
+
+  it('should install insta CLI if not found', () => {
     execSync.mockImplementationOnce(() => {
-      throw new Error('ssh failed')
+      throw new Error('not found')
     })
     execSync.mockReturnValueOnce('success')
-    checkInstaInfraExists('/path/to/insta-infra')
+    checkInstaInfraExists()
     expect(execSync).toHaveBeenCalledWith(
-      'git clone https://github.com/data-catering/insta-infra.git /path/to/insta-infra'
+      'curl -fsSL https://raw.githubusercontent.com/data-catering/insta-infra/main/install.sh | sh',
+      { stdio: 'pipe' }
     )
   })
 
-  it('should throw error if both git clone via ssh and https fail', () => {
-    jest.spyOn(fs, 'existsSync').mockReturnValue(false)
+  it('should throw error if installation fails', () => {
     execSync.mockImplementationOnce(() => {
-      throw new Error('ssh failed')
+      throw new Error('not found')
     })
     execSync.mockImplementationOnce(() => {
-      throw new Error('https failed')
+      throw new Error('install failed')
     })
-    expect(() => checkInstaInfraExists('/path/to/insta-infra')).toThrow(
-      'Failed to checkout insta-infra repository'
+    expect(() => checkInstaInfraExists()).toThrow(
+      'Failed to install insta CLI. Please install manually: https://github.com/data-catering/insta-infra'
     )
-  })
-
-  it('should not clone repository if insta-infra folder exists', () => {
-    jest.spyOn(fs, 'existsSync').mockReturnValue(true)
-    checkInstaInfraExists('/path/to/insta-infra')
-    expect(execSync).not.toHaveBeenCalled()
   })
 })
 
 describe('runServices', () => {
-  it('should run services successfully', () => {
+  beforeEach(() => {
+    jest.resetAllMocks()
+  })
+
+  it('should run services successfully without persistence flag', () => {
     execSync.mockReturnValueOnce('service1 service2')
     execSync.mockReturnValueOnce('success')
-    runServices('/path/to/insta-infra', ['service1', 'service2'], {
-      ENV_VAR: 'value'
-    })
-    expect(execSync).toHaveBeenCalledWith('./run.sh service1 service2', {
-      cwd: '/path/to/insta-infra',
+    runServices(['service1', 'service2'], { ENV_VAR: 'value' })
+    // Verify services are started WITHOUT -p flag (no data persistence)
+    expect(execSync).toHaveBeenCalledWith('insta service1 service2', {
       stdio: 'pipe'
     })
   })
 
   it('should throw error if unsupported service is found', () => {
     execSync.mockReturnValueOnce('service1\nservice2')
-    expect(() =>
-      runServices(
-        '/path/to/insta-infra',
-        ['service1', 'unsupportedService'],
-        {}
-      )
-    ).toThrow('Unsupported service: unsupportedService')
+    expect(() => runServices(['service1', 'unsupportedService'], {})).toThrow(
+      'Unsupported service: unsupportedService'
+    )
   })
 
   it('should log error and check container status if running services fail', () => {
@@ -83,9 +79,7 @@ describe('runServices', () => {
       throw new Error('run failed')
     })
     isContainerFinished.mockReturnValueOnce(true)
-    expect(() => runServices('/path/to/insta-infra', ['service1'], {})).toThrow(
-      'run failed'
-    )
+    expect(() => runServices(['service1'], {})).toThrow('run failed')
     expect(logger.logError).toHaveBeenCalledWith(
       '[Service]',
       'Failed to start services: service1'
@@ -98,17 +92,57 @@ describe('runServices', () => {
       throw new Error('run failed')
     })
     isContainerFinished.mockReturnValue(false)
-    expect(() =>
-      runServices(
-        '/path/to/insta-infra',
-        ['service1', 'service2', 'service3'],
-        {}
-      )
-    ).toThrow('run failed')
+    expect(() => runServices(['service1', 'service2', 'service3'], {})).toThrow(
+      'run failed'
+    )
     // All three services should be checked
     expect(isContainerFinished).toHaveBeenCalledTimes(3)
     expect(isContainerFinished).toHaveBeenCalledWith('service1')
     expect(isContainerFinished).toHaveBeenCalledWith('service2')
     expect(isContainerFinished).toHaveBeenCalledWith('service3')
+  })
+
+  it('should set environment variables before starting services', () => {
+    execSync.mockReturnValueOnce('postgres')
+    execSync.mockReturnValueOnce('success')
+    const envVars = { POSTGRES_USER: 'test', POSTGRES_PASSWORD: 'secret' }
+    runServices(['postgres'], envVars)
+    expect(process.env.POSTGRES_USER).toBe('test')
+    expect(process.env.POSTGRES_PASSWORD).toBe('secret')
+  })
+})
+
+describe('shutdownServices', () => {
+  beforeEach(() => {
+    jest.resetAllMocks()
+  })
+
+  it('should shutdown specific services', () => {
+    execSync.mockReturnValueOnce('success')
+    shutdownServices(['postgres', 'mysql'])
+    expect(execSync).toHaveBeenCalledWith('insta -d postgres mysql', {
+      stdio: 'pipe'
+    })
+  })
+
+  it('should shutdown all services when no services specified', () => {
+    execSync.mockReturnValueOnce('success')
+    shutdownServices()
+    expect(execSync).toHaveBeenCalledWith('insta -d', { stdio: 'pipe' })
+  })
+
+  it('should shutdown all services when empty array provided', () => {
+    execSync.mockReturnValueOnce('success')
+    shutdownServices([])
+    expect(execSync).toHaveBeenCalledWith('insta -d', { stdio: 'pipe' })
+  })
+
+  it('should warn but not throw if shutdown fails', () => {
+    execSync.mockImplementationOnce(() => {
+      throw new Error('shutdown failed')
+    })
+    // Should not throw
+    expect(() => shutdownServices(['postgres'])).not.toThrow()
+    expect(logger.warn).toHaveBeenCalled()
   })
 })

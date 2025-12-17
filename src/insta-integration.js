@@ -606,7 +606,11 @@ function showTestResultSummary(testResults) {
           validation.numValidations - validation.numSuccess
         if (validation.errorValidations) {
           for (const errorValidation of validation.errorValidations) {
-            failedValidationDetails.push(errorValidation)
+            failedValidationDetails.push({
+              ...errorValidation,
+              dataSourceName: validation.dataSourceName,
+              options: validation.options
+            })
           }
         }
       }
@@ -624,7 +628,15 @@ function showTestResultSummary(testResults) {
     logger.info(`${PREFIX_VALIDATION} Failed Validation Details:`)
     for (const errorValidation of failedValidationDetails) {
       const validationStr = JSON.stringify(errorValidation.validation)
-      logger.error(`${PREFIX_VALIDATION}   ✗ ${validationStr}`)
+      const dataSource = errorValidation.dataSourceName || 'unknown'
+      const options = errorValidation.options
+        ? JSON.stringify(errorValidation.options)
+        : ''
+      logger.error(`${PREFIX_VALIDATION}   ✗ Data Source: ${dataSource}`)
+      if (options) {
+        logger.error(`${PREFIX_VALIDATION}     Options: ${options}`)
+      }
+      logger.error(`${PREFIX_VALIDATION}     Validation: ${validationStr}`)
       logger.error(
         `${PREFIX_VALIDATION}     Errors: ${errorValidation.numErrors}`
       )
@@ -672,27 +684,22 @@ function showTestResultSummary(testResults) {
 }
 
 /**
- * Given configuration file and insta-infra folder, do the following:
+ * Given configuration file, do the following:
  * - Get services and initial data set up
  * - Configure and run insta-infra to startup services
  * - Run command for application startup
  * - Setup data-caterer configuration for data generation and validation
  * - Run data-caterer
  * - Return back summarised results
- * @param config Base configuration with config file path, insta-infra folder, execution folder, and docker token
+ * @param config Base configuration with config file path, execution folder, and docker token
  * @returns {Promise<*>} Resolves with test results
  */
 async function runIntegrationTests(config) {
-  if (config.instaInfraFolder.includes(' ')) {
-    throw new Error(
-      `Invalid insta-infra folder path (contains spaces): ${config.instaInfraFolder}`
-    )
-  }
   const parsedConfig = parseConfigFile(config.applicationConfig)
   const applicationConfigDirectory = config.applicationConfig.startsWith('/')
     ? dirname(config.applicationConfig)
     : `${process.cwd()}/${dirname(config.applicationConfig)}`
-  checkInstaInfraExists(config.instaInfraFolder)
+  checkInstaInfraExists()
 
   const { serviceNames, envVars } = extractServiceNamesAndEnv(
     parsedConfig,
@@ -703,7 +710,7 @@ async function runIntegrationTests(config) {
     logger.info(
       `${logger.PREFIX.SERVICE} Starting ${serviceNames.length} service(s)`
     )
-    runServices(config.instaInfraFolder, serviceNames, envVars)
+    runServices(serviceNames, envVars)
   } else {
     logger.debug(`${logger.PREFIX.SERVICE} No services to start`)
   }
